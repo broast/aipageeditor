@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Domain Notes</title>
+    <script src="popup.js" defer></script>
+    <meta charset='UTF-8' />
+    <link rel="stylesheet" href="https://unpkg.com/98.css" />
+    <style>
+        /* make an animated rotating loading indicator */
+        #loadingIndicator {
+            display: none;
+        }
+
+        .lds-dual-ring {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+        }
+
+        .lds-dual-ring:after {
+            content: " ";
+            display: block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            border: 3px solid #000;
+            border-color: #000 transparent #000 transparent;
+            margin-left: -10px;
+            margin-top: -5px;
+            animation: lds-dual-ring 1.2s linear infinite;
+        }
+
+        @keyframes lds-dual-ring {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .style-generation {
+            padding: 5px;
+            border: 1px solid #ccc;
+        }
+        .style-generation * {
+            padding: 5px;
+        }
+
+        /* replace the default font provided by 98.css with a more readable one that supports emojis */
+        body, * {
+            font-family: Arial, sans-serif,  !important;
+        }
+
+        button, .style-generation-note , #notes {
+            font-size: 14px !important;
+            font-weight: bold !important;
+        }
+
+        .style-generation-copy-button {
+            font-size: 13px !important;
+            font-weight: bold !important;
+            margin-left: 10px;
+        }
+
+        #contextControl div { 
+            border: 1px solid black;
+            background: #dfdd9a;
+            margin-bottom: 10px;
+            padding: 5px;
+            font-size: 12px !important;
+        }
+    </style>
+</head>
+
+<body style="width: 425px; margin: 2px; padding: 2px" class="window">
+
+    <div class="title-bar">
+        <div class="title-bar-text">🎨 AI Page Style Editor</div>
+        </h3>
+    </div>
+
+    <!-- The area where we display committed style generations that can be regenerated, modified and applied, or removed -->
+    <div id="style-generations"
+        style="display: none;">
+    </div>
+
+    <textarea id="notes" placeholder="Enter changes here..."
+        style="width: 425px; height: 100px; padding: 10px;"></textarea><br />
+    <fieldset style="margin: 5px;">
+        <button id="save" style="padding: 5px;">🖌️ Generate &amp; Apply</button>
+        <button id="clear" style="padding: 5px;">🗑️ Reset Page</button>
+        <span style="float: right;" id="loadingIndicator" class="lds-dual-ring">
+        </span>
+    </fieldset>
+    <fieldset style="margin: 5px;" id="contextControl">
+        <div>Elements in context: 0 (default) ℹ️ </div>
+        <button id="addElementToContext" style="padding: 5px;">➕ Add Elements To Context</button>
+        <button id="resetContext" style="padding: 5px;">✖️ Reset Context</button>
+    </fieldset>
+</body>
+
+</html>
