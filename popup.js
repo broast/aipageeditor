@@ -15,8 +15,29 @@ class PopupManager {
         this.saveSettingsButton = document.getElementById("saveSettings");
 
         this.initEventListeners();
+        this.initTabs();
         this.loadGenerations();
         this.loadSettings();
+    }
+
+    initTabs() {
+        const tabs = document.querySelectorAll('[role="tab"]');
+        const tabPanels = document.querySelectorAll('[role="tabpanel"]');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => t.setAttribute('aria-selected', 'false'));
+                tab.setAttribute('aria-selected', 'true');
+
+                tabPanels.forEach(panel => {
+                    if (panel.id === tab.querySelector('a').getAttribute('href').substring(1)) {
+                        panel.style.display = 'block';
+                    } else {
+                        panel.style.display = 'none';
+                    }
+                });
+            });
+        });
     }
 
     initEventListeners() {

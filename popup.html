@@ -72,26 +72,35 @@
     <fieldset style="margin: 0px; padding: 0px; border-left: none; border-right: none;" id="advanced-options">
         <legend id="advanced-options-toggle">▶ Advanced options</legend>
         <div id="advanced-options-content" style="display: none;">
-            <fieldset style="margin: 5px;" id="contextControl">
-                <div>Elements in context: 0 (default) ℹ️ </div>
-                <button id="addElementToContext" style="padding: 5px;">➕ Add Elements To Context</button>
-                <button id="resetContext" style="padding: 5px;">✖️ Reset Context</button>
-            </fieldset>
-            <fieldset style="margin: 5px;">
-                <legend>Configuration</legend>
-                <div class="field-row-stacked">
-                    <label for="apiKey">API Key</label>
-                    <input id="apiKey" type="password" />
+            <menu role="tablist" style="margin-top: 15px;">
+                <li role="tab" aria-selected="true"><a href="#context-tab">Context</a></li>
+                <li role="tab"><a href="#model-tab">Model Configuration</a></li>
+            </menu>
+            <div class="window" role="tabpanel" id="context-tab">
+                <div class="window-body">
+                    <div id="contextControl">
+                        <div>Elements in context: 0 (default) ℹ️ </div>
+                        <button id="addElementToContext" style="padding: 5px;">➕ Add Elements To Context</button>
+                        <button id="resetContext" style="padding: 5px;">✖️ Reset Context</button>
+                    </div>
                 </div>
-                <div class="field-row-stacked">
-                    <label for="modelEndpoint">Model Endpoint</label>
-                    <input id="modelEndpoint" type="text" value="https://api.openai.com/v1/chat/completions" />
+            </div>
+            <div class="window" role="tabpanel" id="model-tab" style="display: none;">
+                <div class="window-body">
+                    <div class="field-row-stacked">
+                        <label for="apiKey">API Key</label>
+                        <input id="apiKey" type="password" />
+                    </div>
+                    <div class="field-row-stacked">
+                        <label for="modelEndpoint">Model Endpoint</label>
+                        <input id="modelEndpoint" type="text" value="https://api.openai.com/v1/chat/completions" />
+                    </div>
+                    <div class="field-row-stacked">
+                        <label for="modelName">Model Name</label>
+                        <input id="modelName" type="text" value="gpt-4.1" />
+                    </div>
                 </div>
-                <div class="field-row-stacked">
-                    <label for="modelName">Model Name</label>
-                    <input id="modelName" type="text" value="gpt-4.1" />
-                </div>
-            </fieldset>
+            </div>
         </div>
     </fieldset>
 </body>
