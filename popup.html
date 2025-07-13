@@ -100,6 +100,22 @@
         <button id="addElementToContext" style="padding: 5px;">➕ Add Elements To Context</button>
         <button id="resetContext" style="padding: 5px;">✖️ Reset Context</button>
     </fieldset>
+    <fieldset style="margin: 5px;">
+        <legend>Configuration</legend>
+        <div class="field-row-stacked">
+            <label for="apiKey">API Key</label>
+            <input id="apiKey" type="password" />
+        </div>
+        <div class="field-row-stacked">
+            <label for="modelEndpoint">Model Endpoint</label>
+            <input id="modelEndpoint" type="text" value="https://api.openai.com/v1/chat/completions" />
+        </div>
+        <div class="field-row-stacked">
+            <label for="modelName">Model Name</label>
+            <input id="modelName" type="text" value="gpt-4.1" />
+        </div>
+        <button id="saveSettings" style="padding: 5px; margin-top: 5px;">💾 Save Settings</button>
+    </fieldset>
 </body>
 
 </html>
