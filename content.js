@@ -447,6 +447,10 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
         pageModifier.disableElementSelectionMode();
     } else if (message.action === "runGetElementsInContext") {
         sendResponse({ count: pageModifier.getElementsForContext().length });
+    } else if (message.action === "runResetContext") {
+        pageModifier.selectedElements.clear();
+        pageModifier.disableElementSelectionMode();
+        sendResponse({ success: true });
     }
 });
 

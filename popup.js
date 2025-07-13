@@ -80,8 +80,12 @@ class PopupManager {
     }
     
     async resetContext() {
-        // This function is not implemented in content.js, so I will just leave it empty for now.
-        // I will add the implementation later if needed.
+        const tabs = await this.getActiveTabs();
+        chrome.tabs.sendMessage(tabs[0].id, { action: "runResetContext" }, () => {
+            let contextControl = document.getElementById("contextControl");
+            let contextCount = contextControl.querySelector("div");
+            contextCount.innerText = `Elements in context: 0 ℹ️`;
+        });
     }
 
     async loadGenerations() {
