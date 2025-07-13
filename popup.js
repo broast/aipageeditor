@@ -201,6 +201,7 @@ class PopupManager {
         applyButton.style.display = "none";
 
         modifyButton.addEventListener("click", () => {
+            visibilityCheckbox.disabled = true;
             noteDiv.contentEditable = true;
             noteDiv.focus();
             modifyButton.style.display = "none";
@@ -208,6 +209,7 @@ class PopupManager {
         });
 
         applyButton.addEventListener("click", async () => {
+            visibilityCheckbox.disabled = false;
             let newNote = noteDiv.innerText;
             generationData.note = newNote;
             this.loadingIndicator.style.display = "block";
@@ -232,6 +234,7 @@ class PopupManager {
                 return;
             }
             event.preventDefault();
+            visibilityCheckbox.disabled = false;
             noteDiv.contentEditable = false;
             applyButton.style.display = "none";
             modifyButton.style.display = "inline-block";
