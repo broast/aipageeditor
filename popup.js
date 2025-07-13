@@ -24,7 +24,11 @@ class PopupManager {
         this.clearButton.addEventListener("click", () => this.clearAll());
         this.addElementToContextButton.addEventListener("click", () => this.addElementToContext());
         this.resetContextButton.addEventListener("click", () => this.resetContext());
-        this.saveSettingsButton.addEventListener("click", () => this.saveSettings());
+
+        const debouncedSave = this.debounce(() => this.saveSettings(), 500);
+        this.apiKeyField.addEventListener("input", debouncedSave);
+        this.modelEndpointField.addEventListener("input", debouncedSave);
+        this.modelNameField.addEventListener("input", debouncedSave);
 
         chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             if (message.action === "updatePopup") {
@@ -259,9 +263,7 @@ class PopupManager {
             modelEndpoint: this.modelEndpointField.value,
             modelName: this.modelNameField.value
         };
-        chrome.storage.local.set({ 'aipe_settings': settings }, () => {
-            alert("Settings saved!");
-        });
+        chrome.storage.local.set({ 'aipe_settings': settings });
     }
 
     loadSettings() {
@@ -281,6 +283,15 @@ class PopupManager {
                 resolve(result.aipe_settings || {});
             });
         });
+    }
+
+    debounce(func, delay) {
+        let timeout;
+        return function(...args) {
+            const context = this;
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(context, args), delay);
+        };
     }
 }
 
