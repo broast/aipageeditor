@@ -202,9 +202,9 @@ class PageModifier {
             const style = document.createElement('style');
             style.id = this.STYLE_ID;
             style.textContent = `
-                .${this.CLS_HOVER}  { outline: 2px solid orange !important; }
-                .${this.CLS_SEL}    { outline: 3px solid blue   !important; }
-                .${this.CLS_SEL_H}  { outline: 3px solid red    !important; }
+                .${this.CLS_HOVER}  { outline: 2px solid orange !important; position: relative; z-index: 9999; }
+                .${this.CLS_SEL}    { outline: 3px solid blue   !important; position: relative; z-index: 9999; }
+                .${this.CLS_SEL_H}  { outline: 3px solid red    !important; position: relative; z-index: 9999; }
             `;
             document.head.appendChild(style);
         }
