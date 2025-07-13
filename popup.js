@@ -44,7 +44,8 @@ class PopupManager {
 
         chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             if (message.action === "updatePopup") {
-                this.addGenerationToPopup(message.domain, message.data);
+                this.styleGenerations.innerHTML = "";
+                this.loadGenerations();
             }
         });
 
@@ -136,10 +137,39 @@ class PopupManager {
         styleGeneration.className = "style-generation status-bar-field";
         styleGeneration.id = ID_PREFIX + generationData.id;
 
+        let noteContainer = document.createElement("div");
+        noteContainer.style.display = "flex";
+        noteContainer.style.alignItems = "center";
+
+        let visibilityCheckbox = document.createElement("input");
+        visibilityCheckbox.type = "checkbox";
+        visibilityCheckbox.checked = generationData.visible !== false;
+        visibilityCheckbox.style.marginRight = "5px";
+
+        visibilityCheckbox.addEventListener("change", () => {
+            chrome.storage.local.get([domain], (result) => {
+                let data = result[domain];
+                let generations = data.generations;
+                let targetGeneration = generations.find((g) => g.id === generationData.id);
+                if (targetGeneration) {
+                    targetGeneration.visible = visibilityCheckbox.checked;
+                }
+                data.generations = generations;
+                chrome.storage.local.set({ [domain]: data }, () => {
+                    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                        chrome.tabs.sendMessage(tabs[0].id, { action: "runClearAndReapply" });
+                    });
+                });
+            });
+        });
+
+        noteContainer.appendChild(visibilityCheckbox);
+
         let noteDiv = document.createElement("div");
         noteDiv.innerText = generationData.note;
         noteDiv.className = "style-generation-note";
-        styleGeneration.appendChild(noteDiv);
+        noteContainer.appendChild(noteDiv);
+        styleGeneration.appendChild(noteContainer);
 
         let regenerateButton = document.createElement("button");
         regenerateButton.innerText = "🦎 Regenerate";
@@ -151,6 +181,7 @@ class PopupManager {
                 action: "runProcessUserNote", 
                 note: generationData.note, 
                 id: generationData.id,
+                visible: generationData.visible,
                 apiKey: settings.apiKey,
                 modelEndpoint: settings.modelEndpoint,
                 modelName: settings.modelName
@@ -175,21 +206,19 @@ class PopupManager {
             generationData.note = newNote;
             this.loadingIndicator.style.display = "block";
             const settings = await this.getSettings();
-            chrome.storage.local.set({ [domain]: generationData }, () => {
-                chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                    chrome.tabs.sendMessage(tabs[0].id, {
-                        action: "runProcessUserNote",
-                        note: newNote,
-                        id: generationData.id,
-                        apiKey: settings.apiKey,
-                        modelEndpoint: settings.modelEndpoint,
-                        modelName: settings.modelName
-                    });
-                    noteDiv.contentEditable = false;
-                    applyButton.style.display = "none";
-                    modifyButton.style.display = "inline-block";
-                });
+            const tabs = await this.getActiveTabs();
+            chrome.tabs.sendMessage(tabs[0].id, {
+                action: "runProcessUserNote",
+                note: newNote,
+                id: generationData.id,
+                visible: generationData.visible,
+                apiKey: settings.apiKey,
+                modelEndpoint: settings.modelEndpoint,
+                modelName: settings.modelName
             });
+            noteDiv.contentEditable = false;
+            applyButton.style.display = "none";
+            modifyButton.style.display = "inline-block";
         });
 
         noteDiv.addEventListener("blur", (event) => {

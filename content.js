@@ -22,9 +22,16 @@ class Storage {
         if (!data.generations) {
             data.generations = [];
         }
+        let existingGeneration = null;
         if (generationData.id) {
+            existingGeneration = data.generations.find(g => g.id === generationData.id);
             data.generations = data.generations.filter(g => g.id !== generationData.id);
         }
+
+        if (existingGeneration && generationData.visible === undefined) {
+            generationData.visible = existingGeneration.visible;
+        }
+
         data.generations.push(generationData);
         return this.set(domain, data);
     }
@@ -383,7 +390,9 @@ class PageModifier {
         let data = await Storage.get(domain);
         if (data && data.generations) {
             data.generations.forEach((generation) => {
-                this.applyCssRulesToPage(generation.styles, generation.id);
+                if (generation.visible !== false) {
+                    this.applyCssRulesToPage(generation.styles, generation.id);
+                }
             });
         }
         this.showToast("Styles applied to page!", 3000);
@@ -392,7 +401,7 @@ class PageModifier {
 
 const pageModifier = new PageModifier();
 
-async function processUserNote(note, existingId = null, apiKey, modelEndpoint, modelName) {
+async function processUserNote(note, existingId = null, apiKey, modelEndpoint, modelName, visible = null) {
     const openAI = new OpenAI(apiKey, modelEndpoint, modelName);
     let url = new URL(window.location.href);
     let domain = url.hostname;
@@ -420,9 +429,17 @@ async function processUserNote(note, existingId = null, apiKey, modelEndpoint, m
             id: generationId
         }
 
+        if (visible !== null) {
+            generationData.visible = visible;
+        } else if (!existingId) {
+            generationData.visible = true;
+        }
+
         await Storage.addGeneration(domain, generationData);
 
-        pageModifier.applyCssRulesToPage(css, generationId);
+        if (generationData.visible !== false) {
+            pageModifier.applyCssRulesToPage(css, generationId);
+        }
 
         pageModifier.showToast("Styles applied to page!", 3000);
         chrome.runtime.sendMessage({ action: "updatePopup", domain: domain, data: generationData });
@@ -432,7 +449,7 @@ async function processUserNote(note, existingId = null, apiKey, modelEndpoint, m
 chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     if (message.action === "runProcessUserNote") {
         try {
-            await processUserNote(message.note, message.id, message.apiKey, message.modelEndpoint, message.modelName);
+            await processUserNote(message.note, message.id, message.apiKey, message.modelEndpoint, message.modelName, message.visible);
         } catch (e) {
             pageModifier.showToast("Error processing notes", 3000);
             console.error(e);
