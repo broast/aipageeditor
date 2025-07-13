@@ -30,6 +30,18 @@ class PopupManager {
         this.modelEndpointField.addEventListener("input", debouncedSave);
         this.modelNameField.addEventListener("input", debouncedSave);
 
+        document.getElementById("advanced-options-toggle").addEventListener("click", () => {
+            const content = document.getElementById("advanced-options-content");
+            const toggle = document.getElementById("advanced-options-toggle");
+            if (content.style.display === "none") {
+                content.style.display = "block";
+                toggle.innerText = "▼ Advanced options";
+            } else {
+                content.style.display = "none";
+                toggle.innerText = "▶ Advanced options";
+            }
+        });
+
         chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             if (message.action === "updatePopup") {
                 this.addGenerationToPopup(message.domain, message.data);
