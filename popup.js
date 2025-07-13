@@ -137,9 +137,9 @@ class PopupManager {
         styleGeneration.className = "style-generation status-bar-field";
         styleGeneration.id = ID_PREFIX + generationData.id;
 
-        let noteContainer = document.createElement("div");
-        noteContainer.style.display = "flex";
-        noteContainer.style.alignItems = "center";
+        let label = document.createElement("label");
+        label.style.display = "flex";
+        label.style.alignItems = "center";
 
         let visibilityCheckbox = document.createElement("input");
         visibilityCheckbox.type = "checkbox";
@@ -163,13 +163,13 @@ class PopupManager {
             });
         });
 
-        noteContainer.appendChild(visibilityCheckbox);
+        label.appendChild(visibilityCheckbox);
 
         let noteDiv = document.createElement("div");
         noteDiv.innerText = generationData.note;
         noteDiv.className = "style-generation-note";
-        noteContainer.appendChild(noteDiv);
-        styleGeneration.appendChild(noteContainer);
+        label.appendChild(noteDiv);
+        styleGeneration.appendChild(label);
 
         let regenerateButton = document.createElement("button");
         regenerateButton.innerText = "🦎 Regenerate";
