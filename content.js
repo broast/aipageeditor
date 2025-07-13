@@ -188,30 +188,66 @@ class PageModifier {
 
     initElementSelector() {
         this.elementSelectorHandlers = {};
-        this.STYLE_ID = 'inspector-styles';
-        this.CLS_HOVER = 'inspector-hover';
-        this.CLS_SEL = 'inspector-selected';
-        this.CLS_SEL_H = 'inspector-selectedHover';
+        this.hoverOverlay = null;
+        this.selectionOverlays = new Map();
+    }
+
+    createOverlay(element, type) {
+        const overlay = document.createElement('div');
+        const rect = element.getBoundingClientRect();
+        overlay.style.position = 'fixed';
+        overlay.style.top = `${rect.top}px`;
+        overlay.style.left = `${rect.left}px`;
+        overlay.style.width = `${rect.width}px`;
+        overlay.style.height = `${rect.height}px`;
+        overlay.style.pointerEvents = 'none';
+        overlay.style.zIndex = '2147483647';
+        overlay.style.boxSizing = 'border-box';
+
+        if (type === 'hover') {
+            overlay.style.outline = '2px solid orange';
+        } else if (type === 'selected') {
+            overlay.style.backgroundColor = 'rgba(0, 100, 255, 0.3)';
+            overlay.style.outline = '3px solid blue';
+        } else if (type === 'selectedHover') {
+            overlay.style.backgroundColor = 'rgba(255, 0, 0, 0.3)';
+            overlay.style.outline = '3px solid red';
+        }
+        document.body.appendChild(overlay);
+        return overlay;
+    }
+
+    updateOverlays() {
+        if (this.hoverOverlay) {
+            const rect = this.hoverOverlay.element.getBoundingClientRect();
+            this.hoverOverlay.overlay.style.top = `${rect.top}px`;
+            this.hoverOverlay.overlay.style.left = `${rect.left}px`;
+            this.hoverOverlay.overlay.style.width = `${rect.width}px`;
+            this.hoverOverlay.overlay.style.height = `${rect.height}px`;
+        }
+        for (const [element, overlay] of this.selectionOverlays.entries()) {
+            if (element.isConnected) {
+                const rect = element.getBoundingClientRect();
+                overlay.style.top = `${rect.top}px`;
+                overlay.style.left = `${rect.left}px`;
+                overlay.style.width = `${rect.width}px`;
+                overlay.style.height = `${rect.height}px`;
+            } else {
+                overlay.remove();
+                this.selectionOverlays.delete(element);
+                this.selectedElements.delete(element);
+            }
+        }
     }
 
     enableElementSelectionMode() {
         if (this.elementSelectorHandlers.enabled) return;
         this.elementSelectorHandlers.enabled = true;
 
-        if (!document.getElementById(this.STYLE_ID)) {
-            const style = document.createElement('style');
-            style.id = this.STYLE_ID;
-            style.textContent = `
-                .${this.CLS_HOVER}  { outline: 2px solid orange !important; position: relative; z-index: 9999; }
-                .${this.CLS_SEL}    { outline: 3px solid blue   !important; position: relative; z-index: 9999; }
-                .${this.CLS_SEL_H}  { outline: 3px solid red    !important; position: relative; z-index: 9999; }
-            `;
-            document.head.appendChild(style);
-        }
-
         for (const el of [...this.selectedElements]) {
             if (el.isConnected) {
-                el.classList.add(this.CLS_SEL);
+                const overlay = this.createOverlay(el, 'selected');
+                this.selectionOverlays.set(el, overlay);
             } else {
                 this.selectedElements.delete(el);
             }
@@ -222,21 +258,50 @@ class PageModifier {
         this.elementSelectorHandlers.click = e => {
             if (e.target === document.body) return;
             const el = e.target;
-            const nowSel = el.classList.toggle(this.CLS_SEL);
-            el.classList.remove(this.CLS_HOVER, this.CLS_SEL_H);
-            nowSel ? this.selectedElements.add(el) : this.selectedElements.delete(el);
+
+            if (this.selectionOverlays.has(el)) {
+                this.selectionOverlays.get(el).remove();
+                this.selectionOverlays.delete(el);
+                this.selectedElements.delete(el);
+            } else {
+                const overlay = this.createOverlay(el, 'selected');
+                this.selectionOverlays.set(el, overlay);
+                this.selectedElements.add(el);
+            }
             e.preventDefault();
             e.stopPropagation();
         };
 
         this.elementSelectorHandlers.over = e => {
             const el = e.target;
-            if (el === document.body) return;
-            el.classList.contains(this.CLS_SEL)
-                ? el.classList.add(this.CLS_SEL_H)
-                : el.classList.add(this.CLS_HOVER);
+            if (el === document.body || this.hoverOverlay?.element === el) return;
+            
+            if (this.hoverOverlay) {
+                this.hoverOverlay.overlay.remove();
+                this.hoverOverlay = null;
+            }
+
+            const selectedOverlay = this.selectionOverlays.get(el);
+            if (selectedOverlay) {
+                selectedOverlay.style.backgroundColor = 'rgba(255, 0, 0, 0.3)';
+                selectedOverlay.style.outline = '3px solid red';
+            } else {
+                const overlay = this.createOverlay(el, 'hover');
+                this.hoverOverlay = { element: el, overlay: overlay };
+            }
         };
-        this.elementSelectorHandlers.out = e => e.target.classList.remove(this.CLS_HOVER, this.CLS_SEL_H);
+        this.elementSelectorHandlers.out = e => {
+            const el = e.target;
+            if (this.hoverOverlay && this.hoverOverlay.element === el) {
+                this.hoverOverlay.overlay.remove();
+                this.hoverOverlay = null;
+            }
+            const selectedOverlay = this.selectionOverlays.get(el);
+            if (selectedOverlay) {
+                selectedOverlay.style.backgroundColor = 'rgba(0, 100, 255, 0.3)';
+                selectedOverlay.style.outline = '3px solid blue';
+            }
+        };
 
         this.elementSelectorHandlers.keydown = e => {
             if (e.key === 'Escape') {
@@ -244,10 +309,14 @@ class PageModifier {
             }
         };
 
+        this.elementSelectorHandlers.update = () => this.updateOverlays();
+
         document.body.addEventListener('click', this.elementSelectorHandlers.click, true);
         document.body.addEventListener('mouseover', this.elementSelectorHandlers.over, true);
         document.body.addEventListener('mouseout', this.elementSelectorHandlers.out, true);
         document.addEventListener('keydown', this.elementSelectorHandlers.keydown);
+        window.addEventListener('scroll', this.elementSelectorHandlers.update, true);
+        window.addEventListener('resize', this.elementSelectorHandlers.update, true);
 
         this.elementSelectorHandlers.toastRef = this.showAndReturnPersistentToast(
             'You have entered element-selection mode. Click to (de)select, hover to highlight, Esc to exit.'
@@ -262,14 +331,19 @@ class PageModifier {
         document.body.removeEventListener('mouseover', this.elementSelectorHandlers.over, true);
         document.body.removeEventListener('mouseout', this.elementSelectorHandlers.out, true);
         document.removeEventListener('keydown', this.elementSelectorHandlers.keydown);
+        window.removeEventListener('scroll', this.elementSelectorHandlers.update, true);
+        window.removeEventListener('resize', this.elementSelectorHandlers.update, true);
 
         document.body.style.cursor = '';
 
-        document.querySelectorAll(`.${this.CLS_HOVER}, .${this.CLS_SEL_H}, .${this.CLS_SEL}`)
-            .forEach(el => el.classList.remove(this.CLS_HOVER, this.CLS_SEL_H, this.CLS_SEL));
-
-        const style = document.getElementById(this.STYLE_ID);
-        if (style) style.remove();
+        if (this.hoverOverlay) {
+            this.hoverOverlay.overlay.remove();
+            this.hoverOverlay = null;
+        }
+        for (const overlay of this.selectionOverlays.values()) {
+            overlay.remove();
+        }
+        this.selectionOverlays.clear();
 
         if (this.elementSelectorHandlers.toastRef) {
             this.removeToast(this.elementSelectorHandlers.toastRef);
