@@ -64,6 +64,9 @@ class PopupManager {
         this.modelEndpointField.addEventListener("input", debouncedSave);
         this.modelNameField.addEventListener("input", debouncedSave);
 
+        this.notesField.addEventListener("input", () => this.updateSaveButtonState());
+        this.updateSaveButtonState();
+
         document.getElementById("advanced-options-toggle").addEventListener("click", () => {
             const content = document.getElementById("advanced-options-content");
             const toggle = document.getElementById("advanced-options-toggle");
@@ -101,8 +104,15 @@ class PopupManager {
         });
     }
 
+    updateSaveButtonState() {
+        this.saveButton.disabled = this.notesField.value.trim() === "";
+    }
+
     async saveNote() {
         let note = this.notesField.value;
+        if (note.trim() === "") {
+            return;
+        }
         this.loadingIndicator.style.display = "block";
         const tabs = await this.getActiveTabs();
         const settings = await this.getSettings();
