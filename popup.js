@@ -19,6 +19,7 @@ class PopupManager {
         this.loadGenerations();
         this.loadSettings();
         this.updateTitle();
+        this.loadIncludeDefaultContext();
     }
 
     async updateTitle() {
@@ -58,7 +59,10 @@ class PopupManager {
         this.clearButton.addEventListener("click", () => this.clearAll());
         this.addElementToContextButton.addEventListener("click", () => this.addElementToContext());
         this.resetContextButton.addEventListener("click", () => this.resetContext());
-        this.includeDefaultContext.addEventListener("change", () => this.updateContextLabel());
+        this.includeDefaultContext.addEventListener("change", () => {
+            this.saveIncludeDefaultContext();
+            this.updateContextLabel();
+        });
 
         const debouncedSave = this.debounce(() => this.saveSettings(), 500);
         this.apiKeyField.addEventListener("input", debouncedSave);
@@ -159,6 +163,7 @@ class PopupManager {
         const tabs = await this.getActiveTabs();
         chrome.tabs.sendMessage(tabs[0].id, { action: "runResetContext" }, () => {
             this.includeDefaultContext.checked = true;
+            this.saveIncludeDefaultContext();
             this.updateContextLabel();
         });
     }
@@ -403,6 +408,27 @@ class PopupManager {
             clearTimeout(timeout);
             timeout = setTimeout(() => func.apply(context, args), delay);
         };
+    }
+
+    async saveIncludeDefaultContext() {
+        const tabs = await this.getActiveTabs();
+        const url = new URL(tabs[0].url);
+        const domain = url.hostname;
+        let data = { includeDefaultContext: this.includeDefaultContext.checked };
+        chrome.storage.local.set({ [domain + "_includeDefaultContext"]: data });
+    }
+
+    async loadIncludeDefaultContext() {
+        const tabs = await this.getActiveTabs();
+        const url = new URL(tabs[0].url);
+        const domain = url.hostname;
+        chrome.storage.local.get([domain + "_includeDefaultContext"], (result) => {
+            let data = result[domain + "_includeDefaultContext"];
+            if (data && data.hasOwnProperty("includeDefaultContext")) {
+                this.includeDefaultContext.checked = data.includeDefaultContext;
+            }
+            this.updateContextLabel();
+        });
     }
 }
 
