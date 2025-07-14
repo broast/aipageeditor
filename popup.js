@@ -62,12 +62,12 @@ class PopupManager {
         document.getElementById("advanced-options-toggle").addEventListener("click", () => {
             const content = document.getElementById("advanced-options-content");
             const toggle = document.getElementById("advanced-options-toggle");
-            if (content.style.display === "none") {
-                content.style.display = "block";
-                toggle.innerText = "▼ Advanced options";
-            } else {
-                content.style.display = "none";
+            if (content.style.maxHeight) {
+                content.style.maxHeight = null;
                 toggle.innerText = "▶ Advanced options";
+            } else {
+                content.style.maxHeight = content.scrollHeight + "px";
+                toggle.innerText = "▼ Advanced options";
             }
         });
 

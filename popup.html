@@ -52,6 +52,12 @@
             cursor: pointer;
             user-select: none;
         }
+
+        #advanced-options-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.2s ease-out;
+        }
     </style>
 </head>
 
@@ -76,7 +82,7 @@
     </fieldset>
     <fieldset style="margin: 0px; padding: 0px; border-left: none; border-right: none; border-bottom:none;" id="advanced-options">
         <legend id="advanced-options-toggle">▶ Advanced options</legend>
-        <div id="advanced-options-content" style="display: none;">
+        <div id="advanced-options-content">
             <menu role="tablist" style="margin-top: 10px;">
                 <li role="tab" aria-selected="true"><a href="#context-tab">Context</a></li>
                 <li role="tab"><a href="#model-tab">Model Configuration</a></li>
