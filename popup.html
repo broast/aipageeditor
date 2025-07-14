@@ -22,6 +22,7 @@
         /* replace the default font provided by 98.css with a more readable one that supports emojis */
         body, * {
             font-family: Arial, sans-serif,  !important;
+            font-weight: bold !important;
         }
 
         button, .style-generation-note , #notes {
@@ -73,10 +74,10 @@
         <button id="clear" style="padding: 5px;">🗑️ Reset Page</button>
         <img id="loadingIndicator" src="loading.webp" style="display: none; position:absolute; top: -50%; right: -25px; width: 100px;">
     </fieldset>
-    <fieldset style="margin: 0px; padding: 0px; border-left: none; border-right: none;" id="advanced-options">
+    <fieldset style="margin: 0px; padding: 0px; border-left: none; border-right: none; border-bottom:none;" id="advanced-options">
         <legend id="advanced-options-toggle">▶ Advanced options</legend>
         <div id="advanced-options-content" style="display: none;">
-            <menu role="tablist" style="margin-top: 15px;">
+            <menu role="tablist" style="margin-top: 10px;">
                 <li role="tab" aria-selected="true"><a href="#context-tab">Context</a></li>
                 <li role="tab"><a href="#model-tab">Model Configuration</a></li>
             </menu>
