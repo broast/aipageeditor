@@ -319,7 +319,7 @@ class PageModifier {
         window.addEventListener('resize', this.elementSelectorHandlers.update, true);
 
         this.elementSelectorHandlers.toastRef = this.showAndReturnPersistentToast(
-            'You have entered element-selection mode. Click elements to add them to the context. Click again to remove. When you are finished adding elements, press (Esc) or return to the extension popup to exit this mode.'
+            'Click elements to add them to the context. Click again to remove. When you are finished adding elements, press (Esc) or return to the extension popup.'
         );
     }
 
