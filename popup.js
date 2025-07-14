@@ -18,6 +18,14 @@ class PopupManager {
         this.initTabs();
         this.loadGenerations();
         this.loadSettings();
+        this.updateTitle();
+    }
+
+    async updateTitle() {
+        const tabs = await this.getActiveTabs();
+        const url = new URL(tabs[0].url);
+        const domain = url.hostname;
+        document.querySelector(".title-bar-text").innerText = `🎨 AI Page Style Editor (${domain})`;
     }
 
     initTabs() {
