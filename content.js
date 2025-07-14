@@ -475,15 +475,18 @@ class PageModifier {
 
 const pageModifier = new PageModifier();
 
-async function processUserNote(note, existingId = null, apiKey, modelEndpoint, modelName, visible = null) {
+async function processUserNote(note, existingId = null, apiKey, modelEndpoint, modelName, visible = null, includeDefaultContext = true) {
     const openAI = new OpenAI(apiKey, modelEndpoint, modelName);
     let url = new URL(window.location.href);
     let domain = url.hostname;
     if (note) {
-        let cleanedHtmlStructure = pageModifier.getCleanHTMLStructureWithStyles();
-        if (cleanedHtmlStructure.length > 10000) {
-            let start = Math.floor(Math.random() * (cleanedHtmlStructure.length - 10000));
-            cleanedHtmlStructure = cleanedHtmlStructure.slice(start, start + 10000);
+        let cleanedHtmlStructure = "";
+        if (includeDefaultContext) {
+            cleanedHtmlStructure = pageModifier.getCleanHTMLStructureWithStyles();
+            if (cleanedHtmlStructure.length > 10000) {
+                let start = Math.floor(Math.random() * (cleanedHtmlStructure.length - 10000));
+                cleanedHtmlStructure = cleanedHtmlStructure.slice(start, start + 10000);
+            }
         }
 
         pageModifier.showToast("Generating new styles for this page...", 3000);
@@ -523,7 +526,7 @@ async function processUserNote(note, existingId = null, apiKey, modelEndpoint, m
 chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     if (message.action === "runProcessUserNote") {
         try {
-            await processUserNote(message.note, message.id, message.apiKey, message.modelEndpoint, message.modelName, message.visible);
+            await processUserNote(message.note, message.id, message.apiKey, message.modelEndpoint, message.modelName, message.visible, message.includeDefaultContext);
         } catch (e) {
             pageModifier.showToast("Error processing notes", 3000);
             console.error(e);

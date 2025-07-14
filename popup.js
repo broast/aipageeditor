@@ -1,4 +1,3 @@
-
 class PopupManager {
     constructor() {
         this.notesField = document.getElementById("notes");
@@ -8,6 +7,7 @@ class PopupManager {
         this.resetContextButton = document.getElementById("resetContext");
         this.loadingIndicator = document.getElementById("loadingIndicator");
         this.styleGenerations = document.getElementById("style-generations");
+        this.includeDefaultContext = document.getElementById("includeDefaultContext");
 
         this.apiKeyField = document.getElementById("apiKey");
         this.modelEndpointField = document.getElementById("modelEndpoint");
@@ -58,6 +58,7 @@ class PopupManager {
         this.clearButton.addEventListener("click", () => this.clearAll());
         this.addElementToContextButton.addEventListener("click", () => this.addElementToContext());
         this.resetContextButton.addEventListener("click", () => this.resetContext());
+        this.includeDefaultContext.addEventListener("change", () => this.updateContextLabel());
 
         const debouncedSave = this.debounce(() => this.saveSettings(), 500);
         this.apiKeyField.addEventListener("input", debouncedSave);
@@ -93,12 +94,25 @@ class PopupManager {
 
         // on load, send a signal to get the number of elements in context
         // and update the popup
+        this.updateContextLabel();
+    }
+
+    updateContextLabel() {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             chrome.tabs.sendMessage(tabs[0].id, { action: "runGetElementsInContext" }, (response) => {
                 if (response) {
                     let contextControl = document.getElementById("contextControl");
                     let contextCount = contextControl.querySelector("div");
-                    contextCount.innerText = `Elements in context: ${response.count} ℹ️`;
+                    let count = response.count;
+                    let text = `Elements in context: ${count}`;
+                    if (this.includeDefaultContext.checked) {
+                        if (count > 0) {
+                            text += " + Default";
+                        } else {
+                            text = "Elements in context: Default";
+                        }
+                    }
+                    contextCount.innerText = text + " ℹ️";
                 }
             });
         });
@@ -121,7 +135,8 @@ class PopupManager {
             note: note,
             apiKey: settings.apiKey,
             modelEndpoint: settings.modelEndpoint,
-            modelName: settings.modelName
+            modelName: settings.modelName,
+            includeDefaultContext: this.includeDefaultContext.checked
         });
     }
 
@@ -143,9 +158,8 @@ class PopupManager {
     async resetContext() {
         const tabs = await this.getActiveTabs();
         chrome.tabs.sendMessage(tabs[0].id, { action: "runResetContext" }, () => {
-            let contextControl = document.getElementById("contextControl");
-            let contextCount = contextControl.querySelector("div");
-            contextCount.innerText = `Elements in context: 0 ℹ️`;
+            this.includeDefaultContext.checked = true;
+            this.updateContextLabel();
         });
     }
 
@@ -394,4 +408,12 @@ class PopupManager {
 
 document.addEventListener("DOMContentLoaded", function () {
     new PopupManager();
+});
+
+
+// on close, send a signal to exit element selection mode
+window.addEventListener("beforeunload", function () {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        chrome.tabs.sendMessage(tabs[0].id, { action: "runExitElementSelectionMode" });
+    });
 });
