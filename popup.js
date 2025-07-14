@@ -44,6 +44,11 @@ class PopupManager {
                         panel.style.display = 'none';
                     }
                 });
+
+                const advancedContent = document.getElementById("advanced-options-content");
+                if (advancedContent.style.maxHeight) {
+                    advancedContent.style.maxHeight = advancedContent.scrollHeight + "px";
+                }
             });
         });
     }
