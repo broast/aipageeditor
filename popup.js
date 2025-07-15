@@ -9,6 +9,7 @@ class PopupManager {
         this.styleGenerations = document.getElementById("style-generations");
         this.includeDefaultContext = document.getElementById("includeDefaultContext");
         this.globalStyleCheckbox = document.getElementById("global-style-checkbox");
+        this.sendScreenshot = document.getElementById("sendScreenshot");
 
         this.apiKeyField = document.getElementById("apiKey");
         this.modelEndpointField = document.getElementById("modelEndpoint");
@@ -137,10 +138,9 @@ class PopupManager {
         const settings = await this.getSettings();
         const isGlobal = this.globalStyleCheckbox.checked;
 
-        chrome.storage.local.get("screenshotUrl", (data) => {
-            const screenshotUrl = data.screenshotUrl;
-            chrome.tabs.sendMessage(tabs[0].id, { 
-                action: "runProcessUserNote", 
+        const sendMessage = (screenshotUrl = null) => {
+            chrome.tabs.sendMessage(tabs[0].id, {
+                action: "runProcessUserNote",
                 note: note,
                 apiKey: settings.apiKey,
                 modelEndpoint: settings.modelEndpoint,
@@ -149,11 +149,15 @@ class PopupManager {
                 isGlobal: isGlobal,
                 screenshotUrl: screenshotUrl
             });
+        };
 
-            if (screenshotUrl) {
-                chrome.storage.local.remove("screenshotUrl");
-            }
-        });
+        if (this.sendScreenshot.checked) {
+            chrome.tabs.captureVisibleTab(null, { format: "png" }, (dataUrl) => {
+                sendMessage(dataUrl);
+            });
+        } else {
+            sendMessage();
+        }
     }
 
     async clearAll() {
