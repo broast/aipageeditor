@@ -52,8 +52,32 @@ class OpenAI {
         this.modelName = modelName;
     }
 
-    async generateCss(note, htmlStructure, selectedElementsHtml) {
+    async generateCss(note, htmlStructure, selectedElementsHtml, screenshotUrl = null) {
         const selectedElementsPrompt = selectedElementsHtml ? `The user has selected the following elements html to include in the context: ${selectedElementsHtml}` : "";
+
+        const userContent = [
+            {
+                type: "text",
+                text: `These are the users notes for this website: ${note}
+
+${selectedElementsPrompt}
+
+Here is the html structure of the page: ${htmlStructure}
+
+As a reminder, the users notes are: ${note}. Please return CSS that will modify the page to match the users notes.. do not confuse the words in the users notes for class names or tags, the user does not know about those and can not see those!! The user only provides visual changes to the user experience. 
+
+Note: Please Do Not change anything the user does not ask you to change.... you will be rewarded as always for high quality work only. Thank you!!! (You have currently earned 7,830 rewards and are on a 23 day streak) `
+            }
+        ];
+
+        if (screenshotUrl) {
+            userContent.push({
+                type: "image_url",
+                image_url: {
+                    url: screenshotUrl
+                }
+            });
+        }
 
         const requestInfo = {
             method: "POST",
@@ -75,15 +99,7 @@ Do not respond with any other text. Only respond with the css rules, as your res
 The browser is Chrome, so you can use any css that works in Chrome. These styles will likely be at the top of the file, so you may use !important if needed.
 ` },
                     {
-                        role: "user", content: `These are the users notes for this website: ${note}
-
-${selectedElementsPrompt}
-
-Here is the html structure of the page: ${htmlStructure}
-
-As a reminder, the users notes are: ${note}. Please return CSS that will modify the page to match the users notes.. do not confuse the words in the users notes for class names or tags, the user does not know about those and can not see those!! The user only provides visual changes to the user experience. 
-
-Note: Please Do Not change anything the user does not ask you to change.... you will be rewarded as always for high quality work only. Thank you!!! (You have currently earned 7,830 rewards and are on a 23 day streak) `
+                        role: "user", content: userContent
                     },
 
                 ]
@@ -486,7 +502,7 @@ class PageModifier {
 
 const pageModifier = new PageModifier();
 
-async function processUserNote(note, existingId = null, apiKey, modelEndpoint, modelName, visible = null, includeDefaultContext = true, isGlobal = false) {
+async function processUserNote(note, existingId = null, apiKey, modelEndpoint, modelName, visible = null, includeDefaultContext = true, isGlobal = false, screenshotUrl = null) {
     const openAI = new OpenAI(apiKey, modelEndpoint, modelName);
     let url = new URL(window.location.href);
     let domain = isGlobal ? "global_styles" : url.hostname;
@@ -507,7 +523,7 @@ async function processUserNote(note, existingId = null, apiKey, modelEndpoint, m
             return el.outerHTML;
         }).join("\n");
 
-        const {css, requestBody} = await openAI.generateCss(note, cleanedHtmlStructure, selectedElementsHtml);
+        const {css, requestBody} = await openAI.generateCss(note, cleanedHtmlStructure, selectedElementsHtml, screenshotUrl);
 
         let generationId = existingId ? existingId : crypto.randomUUID();
         let generationData = {
@@ -516,6 +532,7 @@ async function processUserNote(note, existingId = null, apiKey, modelEndpoint, m
             requestBody: requestBody,
             id: generationId
         }
+
 
         if (visible !== null) {
             generationData.visible = visible;
@@ -537,7 +554,7 @@ async function processUserNote(note, existingId = null, apiKey, modelEndpoint, m
 chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     if (message.action === "runProcessUserNote") {
         try {
-            await processUserNote(message.note, message.id, message.apiKey, message.modelEndpoint, message.modelName, message.visible, message.includeDefaultContext, message.isGlobal);
+            await processUserNote(message.note, message.id, message.apiKey, message.modelEndpoint, message.modelName, message.visible, message.includeDefaultContext, message.isGlobal, message.screenshotUrl);
         } catch (e) {
             pageModifier.showToast("Error processing notes", 3000);
             console.error(e);

@@ -137,14 +137,22 @@ class PopupManager {
         const settings = await this.getSettings();
         const isGlobal = this.globalStyleCheckbox.checked;
 
-        chrome.tabs.sendMessage(tabs[0].id, { 
-            action: "runProcessUserNote", 
-            note: note,
-            apiKey: settings.apiKey,
-            modelEndpoint: settings.modelEndpoint,
-            modelName: settings.modelName,
-            includeDefaultContext: this.includeDefaultContext.checked,
-            isGlobal: isGlobal
+        chrome.storage.local.get("screenshotUrl", (data) => {
+            const screenshotUrl = data.screenshotUrl;
+            chrome.tabs.sendMessage(tabs[0].id, { 
+                action: "runProcessUserNote", 
+                note: note,
+                apiKey: settings.apiKey,
+                modelEndpoint: settings.modelEndpoint,
+                modelName: settings.modelName,
+                includeDefaultContext: this.includeDefaultContext.checked,
+                isGlobal: isGlobal,
+                screenshotUrl: screenshotUrl
+            });
+
+            if (screenshotUrl) {
+                chrome.storage.local.remove("screenshotUrl");
+            }
         });
     }
 
