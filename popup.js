@@ -118,7 +118,10 @@ class PopupManager {
                             text = "Elements in context: Default";
                         }
                     }
-                    contextCount.innerText = text + " ℹ️";
+                    if (response.screenshotIncluded) {
+                        text += " + Screenshot";
+                    }
+                    contextCount.innerText = text;
                 }
             });
         });
@@ -394,14 +397,15 @@ class PopupManager {
         styleGeneration.appendChild(buttonsDiv);
 
         if (isGlobal) {
-            styleGeneration.style.background = `linear-gradient(110deg, #0000FF, #000000)`;
-            label.style.color = "white";
+            let randomPastel = Math.floor(Math.random() * 360);
+            styleGeneration.style.background = `hsl(${randomPastel}, 100%, 80%)`;
             let globalLabel = document.createElement("div");
-            globalLabel.innerText = "Global";
+            globalLabel.innerText = "Global 🌐";
             globalLabel.style.position = "absolute";
             globalLabel.style.top = "5px";
             globalLabel.style.right = "5px";
             globalLabel.style.color = "white";
+            globalLabel.style.backgroundColor = "black";
             globalLabel.style.fontSize = "10px";
             globalLabel.style.fontWeight = "bold";
             styleGeneration.appendChild(globalLabel);
@@ -494,6 +498,7 @@ window.addEventListener("beforeunload", function () {
     });
 });
 
+/*
 // on close, send a signal to update the context label
 window.addEventListener("beforeunload", function () {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -510,8 +515,13 @@ window.addEventListener("beforeunload", function () {
                         text = "Elements in context: Default";
                     }
                 }
-                contextCount.innerText = text + " ℹ️";
+                if (response.screenshotIncluded) {
+                    text += " + Screenshot";
+                }
+
+                contextCount.innerText = text;
             }
         });
     });
 });
+*/

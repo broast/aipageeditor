@@ -75,11 +75,13 @@
 
     <textarea id="notes" placeholder="Enter changes here..."
         style="width: 425px; height: 100px; padding: 10px;"></textarea><br />
+    <div style="text-align:right; padding: 5px;">
+        <input type="checkbox" id="global-style-checkbox" style="margin-left: 10px;"/>
+        <label for="global-style-checkbox">Apply to all websites, not just this domain.</label>
+    </div>
     <fieldset style="margin: 5px; position: relative;">
         <button id="save" style="padding: 5px;">🖌️ Generate &amp; Apply</button>
         <button id="clear" style="padding: 5px;">🗑️ Reset Page</button>
-        <input type="checkbox" id="global-style-checkbox" style="margin-left: 10px;"/>
-        <label for="global-style-checkbox">Global Style</label>
         <img id="loadingIndicator" src="loading.webp" style="display: none; position:absolute; top: -50%; right: -25px; width: 100px;">
     </fieldset>
     <fieldset style="margin: 0px; padding: 0px; border-left: none; border-right: none; border-bottom:none;" id="advanced-options">
@@ -93,11 +95,11 @@
                 <div class="window-body">
                     <div id="contextControl">
                         <input type="checkbox" id="includeDefaultContext" checked>
-                        <label for="includeDefaultContext">Include default context</label>
+                        <label for="includeDefaultContext">Include default context (<span title="Default context includes a partial representation of the HTML structure, including some style information, and previews of content strings">❓</span>)</label>
                         <br>
                         <input type="checkbox" id="sendScreenshot">
                         <label for="sendScreenshot">Send Screenshot</label>
-                        <div style="margin-top: 10px">Elements in context: 0 (default) ℹ️ </div>
+                        <div style="margin-top: 10px">Elements in context: Default </div>
                         <button id="addElementToContext" style="padding: 5px;">➕ Add Elements To Context</button>
                         <button id="resetContext" style="padding: 5px;">✖️ Reset Context</button>
                     </div>
