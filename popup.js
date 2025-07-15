@@ -8,6 +8,7 @@ class PopupManager {
         this.loadingIndicator = document.getElementById("loadingIndicator");
         this.styleGenerations = document.getElementById("style-generations");
         this.includeDefaultContext = document.getElementById("includeDefaultContext");
+        this.globalStyleCheckbox = document.getElementById("global-style-checkbox");
 
         this.apiKeyField = document.getElementById("apiKey");
         this.modelEndpointField = document.getElementById("modelEndpoint");
@@ -134,13 +135,16 @@ class PopupManager {
         this.loadingIndicator.style.display = "block";
         const tabs = await this.getActiveTabs();
         const settings = await this.getSettings();
+        const isGlobal = this.globalStyleCheckbox.checked;
+
         chrome.tabs.sendMessage(tabs[0].id, { 
             action: "runProcessUserNote", 
             note: note,
             apiKey: settings.apiKey,
             modelEndpoint: settings.modelEndpoint,
             modelName: settings.modelName,
-            includeDefaultContext: this.includeDefaultContext.checked
+            includeDefaultContext: this.includeDefaultContext.checked,
+            isGlobal: isGlobal
         });
     }
 
@@ -150,8 +154,16 @@ class PopupManager {
         const url = new URL(tabs[0].url);
         const domain = url.hostname;
         chrome.storage.local.remove(domain);
-        this.styleGenerations.innerHTML = "";
-        chrome.tabs.sendMessage(tabs[0].id, { action: "runClear" });
+        
+        // remove all non-global styles from the UI
+        const allGenerations = this.styleGenerations.querySelectorAll(".style-generation");
+        allGenerations.forEach((generation) => {
+            if (!generation.isGlobal) {
+                generation.remove();
+            }
+        });
+
+        chrome.tabs.sendMessage(tabs[0].id, { action: "runClearAndReapply" });
     }
 
     async addElementToContext() {
@@ -172,17 +184,25 @@ class PopupManager {
         const tabs = await this.getActiveTabs();
         const url = new URL(tabs[0].url);
         const domain = url.hostname;
-        chrome.storage.local.get([domain], (result) => {
-            let data = result[domain];
-            if (data && data.generations) {
-                data.generations.forEach((generation) => {
-                    this.addGenerationToPopup(domain, generation);
+        this.styleGenerations.innerHTML = "";
+        chrome.storage.local.get(["global_styles", domain], (result) => {
+            let globalData = result["global_styles"];
+            if (globalData && globalData.generations) {
+                globalData.generations.forEach((generation) => {
+                    this.addGenerationToPopup("global_styles", generation, true);
+                });
+            }
+
+            let domainData = result[domain];
+            if (domainData && domainData.generations) {
+                domainData.generations.forEach((generation) => {
+                    this.addGenerationToPopup(domain, generation, false);
                 });
             }
         });
     }
 
-    addGenerationToPopup(domain, generationData) {
+    addGenerationToPopup(domain, generationData, isGlobal) {
         this.loadingIndicator.style.display = "none";
         const ID_PREFIX = "AIPE_GENERATION_";
 
@@ -199,6 +219,8 @@ class PopupManager {
         let styleGeneration = document.createElement("div");
         styleGeneration.className = "style-generation status-bar-field";
         styleGeneration.id = ID_PREFIX + generationData.id;
+        styleGeneration.style.position = "relative";
+        styleGeneration.isGlobal = isGlobal;
 
         let topContainer = document.createElement("div");
         topContainer.style.display = "flex";
@@ -259,7 +281,8 @@ class PopupManager {
                 visible: generationData.visible,
                 apiKey: settings.apiKey,
                 modelEndpoint: settings.modelEndpoint,
-                modelName: settings.modelName
+                modelName: settings.modelName,
+                isGlobal: isGlobal
             });
         });
 
@@ -289,7 +312,8 @@ class PopupManager {
                 visible: generationData.visible,
                 apiKey: settings.apiKey,
                 modelEndpoint: settings.modelEndpoint,
-                modelName: settings.modelName
+                modelName: settings.modelName,
+                isGlobal: isGlobal
             });
             noteDiv.contentEditable = false;
             applyButton.style.display = "none";
@@ -357,10 +381,24 @@ class PopupManager {
         buttonsDiv.appendChild(removeButton);
         styleGeneration.appendChild(buttonsDiv);
 
-        let randomPastel = Math.floor(Math.random() * 360);
-        let randomPastel2 = (randomPastel + 180) % 360;
-        let randomPastel3 = (randomPastel + 90) % 360;
-        styleGeneration.style.background = `linear-gradient(110deg, hsl(${randomPastel}, 100%, 80%), hsl(${randomPastel2}, 100%, 80%), hsl(${randomPastel3}, 100%, 80%), hsl(0, 0%, 80%))`;
+        if (isGlobal) {
+            styleGeneration.style.background = `linear-gradient(110deg, #0000FF, #000000)`;
+            label.style.color = "white";
+            let globalLabel = document.createElement("div");
+            globalLabel.innerText = "Global";
+            globalLabel.style.position = "absolute";
+            globalLabel.style.top = "5px";
+            globalLabel.style.right = "5px";
+            globalLabel.style.color = "white";
+            globalLabel.style.fontSize = "10px";
+            globalLabel.style.fontWeight = "bold";
+            styleGeneration.appendChild(globalLabel);
+        } else {
+            let randomPastel = Math.floor(Math.random() * 360);
+            let randomPastel2 = (randomPastel + 180) % 360;
+            let randomPastel3 = (randomPastel + 90) % 360;
+            styleGeneration.style.background = `linear-gradient(110deg, hsl(${randomPastel}, 100%, 80%), hsl(${randomPastel2}, 100%, 80%), hsl(${randomPastel3}, 100%, 80%), hsl(0, 0%, 80%))`;
+        }
 
         this.styleGenerations.appendChild(styleGeneration);
     }
@@ -441,5 +479,27 @@ document.addEventListener("DOMContentLoaded", function () {
 window.addEventListener("beforeunload", function () {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         chrome.tabs.sendMessage(tabs[0].id, { action: "runExitElementSelectionMode" });
+    });
+});
+
+// on close, send a signal to update the context label
+window.addEventListener("beforeunload", function () {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        chrome.tabs.sendMessage(tabs[0].id, { action: "runGetElementsInContext" }, (response) => {
+            if (response) {
+                let contextControl = document.getElementById("contextControl");
+                let contextCount = contextControl.querySelector("div");
+                let count = response.count;
+                let text = `Elements in context: ${count}`;
+                if (this.includeDefaultContext.checked) {
+                    if (count > 0) {
+                        text += " + Default";
+                    } else {
+                        text = "Elements in context: Default";
+                    }
+                }
+                contextCount.innerText = text + " ℹ️";
+            }
+        });
     });
 });

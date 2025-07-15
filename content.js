@@ -4,7 +4,7 @@ class Storage {
     static get(domain) {
         return new Promise((resolve) => {
             chrome.storage.local.get(domain, (result) => {
-                resolve(result[domain]);
+                resolve(result);
             });
         });
     }
@@ -18,7 +18,7 @@ class Storage {
     }
 
     static async addGeneration(domain, generationData) {
-        let data = await this.get(domain) || {};
+        let data = (await this.get(domain))[domain] || {};
         if (!data.generations) {
             data.generations = [];
         }
@@ -447,7 +447,7 @@ class PageModifier {
         let style = document.createElement("style");
         style.id = "AIPE_style" + id;
         style.innerHTML = cssRules;
-        document.body.appendChild(style);
+        document.head.appendChild(style);
     }
 
     clearAllAIPEStylesFromPage() {
@@ -461,9 +461,20 @@ class PageModifier {
         this.clearAllAIPEStylesFromPage();
         let url = new URL(window.location.href);
         let domain = url.hostname;
-        let data = await Storage.get(domain);
-        if (data && data.generations) {
-            data.generations.forEach((generation) => {
+        let result = await Storage.get(["global_styles", domain]);
+        
+        let globalData = result["global_styles"];
+        if (globalData && globalData.generations) {
+            globalData.generations.forEach((generation) => {
+                if (generation.visible !== false) {
+                    this.applyCssRulesToPage(generation.styles, generation.id);
+                }
+            });
+        }
+
+        let domainData = result[domain];
+        if (domainData && domainData.generations) {
+            domainData.generations.forEach((generation) => {
                 if (generation.visible !== false) {
                     this.applyCssRulesToPage(generation.styles, generation.id);
                 }
@@ -475,10 +486,10 @@ class PageModifier {
 
 const pageModifier = new PageModifier();
 
-async function processUserNote(note, existingId = null, apiKey, modelEndpoint, modelName, visible = null, includeDefaultContext = true) {
+async function processUserNote(note, existingId = null, apiKey, modelEndpoint, modelName, visible = null, includeDefaultContext = true, isGlobal = false) {
     const openAI = new OpenAI(apiKey, modelEndpoint, modelName);
     let url = new URL(window.location.href);
-    let domain = url.hostname;
+    let domain = isGlobal ? "global_styles" : url.hostname;
     if (note) {
         let cleanedHtmlStructure = "";
         if (includeDefaultContext) {
@@ -526,7 +537,7 @@ async function processUserNote(note, existingId = null, apiKey, modelEndpoint, m
 chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     if (message.action === "runProcessUserNote") {
         try {
-            await processUserNote(message.note, message.id, message.apiKey, message.modelEndpoint, message.modelName, message.visible, message.includeDefaultContext);
+            await processUserNote(message.note, message.id, message.apiKey, message.modelEndpoint, message.modelName, message.visible, message.includeDefaultContext, message.isGlobal);
         } catch (e) {
             pageModifier.showToast("Error processing notes", 3000);
             console.error(e);
