@@ -10,6 +10,8 @@ class PopupManager {
         this.includeDefaultContext = document.getElementById("includeDefaultContext");
         this.globalStyleCheckbox = document.getElementById("global-style-checkbox");
         this.sendScreenshot = document.getElementById("sendScreenshot");
+        this.includeChangeHistory = document.getElementById("includeChangeHistory");
+        this.includeGlobalChangeHistory = document.getElementById("includeGlobalChangeHistory");
 
         this.apiKeyField = document.getElementById("apiKey");
         this.modelEndpointField = document.getElementById("modelEndpoint");
@@ -21,7 +23,7 @@ class PopupManager {
         this.loadGenerations();
         this.loadSettings();
         this.updateTitle();
-        this.loadIncludeDefaultContext();
+        this.loadContextSettings();
     }
 
     async updateTitle() {
@@ -62,10 +64,24 @@ class PopupManager {
         this.addElementToContextButton.addEventListener("click", () => this.addElementToContext());
         this.resetContextButton.addEventListener("click", () => this.resetContext());
         this.includeDefaultContext.addEventListener("change", () => {
-            this.saveIncludeDefaultContext();
+            this.saveContextSettings();
             this.updateContextLabel();
         });
         this.sendScreenshot.addEventListener("change", () => {
+            this.updateContextLabel();
+        });
+
+        this.includeChangeHistory.addEventListener("change", () => {
+            this.includeGlobalChangeHistory.disabled = !this.includeChangeHistory.checked;
+            if (!this.includeChangeHistory.checked) {
+                this.includeGlobalChangeHistory.checked = false;
+            }
+            this.saveContextSettings();
+            this.updateContextLabel();
+        });
+
+        this.includeGlobalChangeHistory.addEventListener("change", () => {
+            this.saveContextSettings();
             this.updateContextLabel();
         });
 
@@ -122,7 +138,15 @@ class PopupManager {
 
                     if (this.sendScreenshot.checked) {
                         text += " + Screenshot";
-                    } 
+                    }
+
+                    if (this.includeChangeHistory.checked) {
+                        text += " + Change History";
+                    }
+
+                    if (this.includeGlobalChangeHistory.checked) {
+                        text += " (Global)";
+                    }
 
                     contextCount.innerText = text;
                 }
@@ -153,7 +177,9 @@ class PopupManager {
                 modelName: settings.modelName,
                 includeDefaultContext: this.includeDefaultContext.checked,
                 isGlobal: isGlobal,
-                screenshotUrl: screenshotUrl
+                screenshotUrl: screenshotUrl,
+                includeChangeHistory: this.includeChangeHistory.checked,
+                includeGlobalChangeHistory: this.includeGlobalChangeHistory.checked
             });
         };
 
@@ -193,7 +219,7 @@ class PopupManager {
         const tabs = await this.getActiveTabs();
         chrome.tabs.sendMessage(tabs[0].id, { action: "runResetContext" }, () => {
             this.includeDefaultContext.checked = true;
-            this.saveIncludeDefaultContext();
+            this.saveContextSettings();
             this.updateContextLabel();
         });
     }
@@ -467,23 +493,30 @@ class PopupManager {
         };
     }
 
-    async saveIncludeDefaultContext() {
+    async saveContextSettings() {
         const tabs = await this.getActiveTabs();
         const url = new URL(tabs[0].url);
         const domain = url.hostname;
-        let data = { includeDefaultContext: this.includeDefaultContext.checked };
-        chrome.storage.local.set({ [domain + "_includeDefaultContext"]: data });
+        let data = { 
+            includeDefaultContext: this.includeDefaultContext.checked,
+            includeChangeHistory: this.includeChangeHistory.checked,
+            includeGlobalChangeHistory: this.includeGlobalChangeHistory.checked
+        };
+        chrome.storage.local.set({ [domain + "_contextSettings"]: data });
     }
 
-    async loadIncludeDefaultContext() {
+    async loadContextSettings() {
         const tabs = await this.getActiveTabs();
         const url = new URL(tabs[0].url);
         const domain = url.hostname;
-        chrome.storage.local.get([domain + "_includeDefaultContext"], (result) => {
-            let data = result[domain + "_includeDefaultContext"];
-            if (data && data.hasOwnProperty("includeDefaultContext")) {
-                this.includeDefaultContext.checked = data.includeDefaultContext;
+        chrome.storage.local.get([domain + "_contextSettings"], (result) => {
+            let data = result[domain + "_contextSettings"];
+            if (data) {
+                this.includeDefaultContext.checked = data.includeDefaultContext !== false;
+                this.includeChangeHistory.checked = data.includeChangeHistory === true;
+                this.includeGlobalChangeHistory.checked = data.includeGlobalChangeHistory === true;
             }
+            this.includeGlobalChangeHistory.disabled = !this.includeChangeHistory.checked;
             this.updateContextLabel();
         });
     }

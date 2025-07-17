@@ -52,21 +52,21 @@ class OpenAI {
         this.modelName = modelName;
     }
 
-    async generateCss(note, htmlStructure, selectedElementsHtml, screenshotUrl = null) {
+    async generateCss(note, htmlStructure, selectedElementsHtml, screenshotUrl = null, changeHistory = []) {
         const selectedElementsPrompt = selectedElementsHtml ? `The user has selected the following elements html to include in the context: ${selectedElementsHtml}` : "";
+
+        let changeHistoryPrompt = "";
+        if (changeHistory.length > 0) {
+            changeHistoryPrompt = "Here is the change history for this page:\n";
+            changeHistory.forEach(generation => {
+                changeHistoryPrompt += `User note: ${generation.note}\nGenerated CSS: ${generation.styles}\n`;
+            });
+        }
 
         const userContent = [
             {
                 type: "text",
-                text: `These are the users notes for this website: ${note}
-
-${selectedElementsPrompt}
-
-Here is the html structure of the page: ${htmlStructure}
-
-As a reminder, the users notes are: ${note}. Please return CSS that will modify the page to match the users notes.. do not confuse the words in the users notes for class names or tags, the user does not know about those and can not see those!! The user only provides visual changes to the user experience. 
-
-Note: Please Do Not change anything the user does not ask you to change.... you will be rewarded as always for high quality work only. Thank you!!! (You have currently earned 7,830 rewards and are on a 23 day streak) `
+                text: `These are the users notes for this website: ${note}\n\n${selectedElementsPrompt}\n${changeHistoryPrompt}\nHere is the html structure of the page: ${htmlStructure}\n\nAs a reminder, the users notes are: ${note}. Please return CSS that will modify the page to match the users notes.. do not confuse the words in the users notes for class names or tags, the user does not know about those and can not see those!! The user only provides visual changes to the user experience. \n\nNote: Please Do Not change anything the user does not ask you to change.... you will be rewarded as always for high quality work only. Thank you!!! (You have currently earned 7,830 rewards and are on a 23 day streak) `
             }
         ];
 
@@ -502,7 +502,7 @@ class PageModifier {
 
 const pageModifier = new PageModifier();
 
-async function processUserNote(note, existingId = null, apiKey, modelEndpoint, modelName, visible = null, includeDefaultContext = true, isGlobal = false, screenshotUrl = null) {
+async function processUserNote(note, existingId = null, apiKey, modelEndpoint, modelName, visible = null, includeDefaultContext = true, isGlobal = false, screenshotUrl = null, includeChangeHistory = false, includeGlobalChangeHistory = false) {
     const openAI = new OpenAI(apiKey, modelEndpoint, modelName);
     let url = new URL(window.location.href);
     let domain = isGlobal ? "global_styles" : url.hostname;
@@ -516,6 +516,26 @@ async function processUserNote(note, existingId = null, apiKey, modelEndpoint, m
             }
         }
 
+        let changeHistory = [];
+        if (includeChangeHistory) {
+            let domainData = await Storage.get(domain);
+            if (domainData[domain] && domainData[domain].generations) {
+                changeHistory = changeHistory.concat(domainData[domain].generations);
+            }
+
+            if (includeGlobalChangeHistory) {
+                let globalData = await Storage.get("global_styles");
+                if (globalData["global_styles"] && globalData["global_styles"].generations) {
+                    changeHistory = changeHistory.concat(globalData["global_styles"].generations);
+                }
+            }
+
+            changeHistory.sort((a, b) => {
+                return new Date(b.timestamp) - new Date(a.timestamp);
+            });
+            changeHistory = changeHistory.slice(0, 10);
+        }
+
         pageModifier.showToast("Generating new styles for this page...", 3000);
 
         var selectedElements = pageModifier.getElementsForContext();
@@ -523,14 +543,15 @@ async function processUserNote(note, existingId = null, apiKey, modelEndpoint, m
             return el.outerHTML;
         }).join("\n");
 
-        const {css, requestBody} = await openAI.generateCss(note, cleanedHtmlStructure, selectedElementsHtml, screenshotUrl);
+        const {css, requestBody} = await openAI.generateCss(note, cleanedHtmlStructure, selectedElementsHtml, screenshotUrl, changeHistory);
 
         let generationId = existingId ? existingId : crypto.randomUUID();
         let generationData = {
             note: note,
             styles: css,
             requestBody: requestBody,
-            id: generationId
+            id: generationId,
+            timestamp: new Date().toISOString()
         }
 
 
@@ -554,7 +575,7 @@ async function processUserNote(note, existingId = null, apiKey, modelEndpoint, m
 chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     if (message.action === "runProcessUserNote") {
         try {
-            await processUserNote(message.note, message.id, message.apiKey, message.modelEndpoint, message.modelName, message.visible, message.includeDefaultContext, message.isGlobal, message.screenshotUrl);
+            await processUserNote(message.note, message.id, message.apiKey, message.modelEndpoint, message.modelName, message.visible, message.includeDefaultContext, message.isGlobal, message.screenshotUrl, message.includeChangeHistory, message.includeGlobalChangeHistory);
         } catch (e) {
             pageModifier.showToast("Error processing notes", 3000);
             console.error(e);
