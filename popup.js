@@ -125,7 +125,7 @@ class PopupManager {
             chrome.tabs.sendMessage(tabs[0].id, { action: "runGetElementsInContext" }, (response) => {
                 if (response) {
                     let contextControl = document.getElementById("contextControl");
-                    let contextCount = contextControl.querySelector("div");
+                    let contextCount = contextControl.querySelector(".context-count");
                     let count = response.count;
                     let text = `Elements in context: ${count}`;
                     if (this.includeDefaultContext.checked) {
