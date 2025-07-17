@@ -34,24 +34,31 @@ class PopupManager {
     }
 
     initTabs() {
-        const tabs = document.querySelectorAll('[role="tab"]');
-        const tabPanels = document.querySelectorAll('[role="tabpanel"]');
+        document.querySelectorAll('[role="tablist"]').forEach(tablist => {
+            const tabs = [...tablist.querySelectorAll('[role="tab"]')];
+            const panels = tabs
+                .map(t => document.getElementById(t.querySelector('a').getAttribute('href').slice(1)))
+                .filter(Boolean);
 
-        tabs.forEach(tab => {
-            tab.addEventListener('click', () => {
-                tabs.forEach(t => t.setAttribute('aria-selected', 'false'));
-                tab.setAttribute('aria-selected', 'true');
+            const showActive = () => {
+                const activeId = tabs.find(t => t.getAttribute('aria-selected') === 'true')
+                    .querySelector('a').getAttribute('href').slice(1);
+                panels.forEach(p => p.hidden = p.id !== activeId);
+            };
 
-                tabPanels.forEach(panel => {
-                    if (panel.id === tab.querySelector('a').getAttribute('href').substring(1)) {
-                        panel.style.display = 'block';
-                    } else {
-                        panel.style.display = 'none';
-                    }
+            tabs.forEach(tab => {
+                tab.addEventListener('click', e => {
+                    e.preventDefault();                    // keep hash out of the URL
+                    tabs.forEach(t => t.setAttribute('aria-selected', 'false'));
+                    tab.setAttribute('aria-selected', 'true');
+                    showActive();
                 });
             });
+
+            showActive();                              // set correct initial state
         });
     }
+
 
     initEventListeners() {
         this.saveButton.addEventListener("click", () => this.saveNote());
@@ -193,7 +200,7 @@ class PopupManager {
         const url = new URL(tabs[0].url);
         const domain = url.hostname;
         chrome.storage.local.remove(domain);
-        
+
         // remove all non-global styles from the UI
         const allGenerations = this.styleGenerations.querySelectorAll(".style-generation");
         allGenerations.forEach((generation) => {
@@ -209,7 +216,7 @@ class PopupManager {
         const tabs = await this.getActiveTabs();
         chrome.tabs.sendMessage(tabs[0].id, { action: "runAddElementToContext" });
     }
-    
+
     async resetContext() {
         const tabs = await this.getActiveTabs();
         chrome.tabs.sendMessage(tabs[0].id, { action: "runResetContext" }, () => {
@@ -313,9 +320,9 @@ class PopupManager {
             this.loadingIndicator.style.display = "block";
             const tabs = await this.getActiveTabs();
             const settings = await this.getSettings();
-            chrome.tabs.sendMessage(tabs[0].id, { 
-                action: "runProcessUserNote", 
-                note: generationData.note, 
+            chrome.tabs.sendMessage(tabs[0].id, {
+                action: "runProcessUserNote",
+                note: generationData.note,
                 id: generationData.id,
                 visible: generationData.visible,
                 apiKey: settings.apiKey,
@@ -481,7 +488,7 @@ class PopupManager {
 
     debounce(func, delay) {
         let timeout;
-        return function(...args) {
+        return function (...args) {
             const context = this;
             clearTimeout(timeout);
             timeout = setTimeout(() => func.apply(context, args), delay);
@@ -492,7 +499,7 @@ class PopupManager {
         const tabs = await this.getActiveTabs();
         const url = new URL(tabs[0].url);
         const domain = url.hostname;
-        let data = { 
+        let data = {
             includeDefaultContext: this.includeDefaultContext.checked,
             includeChangeHistory: this.includeChangeHistory.checked,
             includeGlobalChangeHistory: this.includeGlobalChangeHistory.checked
