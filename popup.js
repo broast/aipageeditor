@@ -65,6 +65,9 @@ class PopupManager {
             this.saveIncludeDefaultContext();
             this.updateContextLabel();
         });
+        this.sendScreenshot.addEventListener("change", () => {
+            this.updateContextLabel();
+        });
 
         const debouncedSave = this.debounce(() => this.saveSettings(), 500);
         this.apiKeyField.addEventListener("input", debouncedSave);
@@ -93,14 +96,12 @@ class PopupManager {
             }
         });
 
-        // on load, send a signal to exit element selection mode
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             chrome.tabs.sendMessage(tabs[0].id, { action: "runExitElementSelectionMode" });
         });
 
-        // on load, send a signal to get the number of elements in context
-        // and update the popup
         this.updateContextLabel();
+
     }
 
     updateContextLabel() {
@@ -118,9 +119,11 @@ class PopupManager {
                             text = "Elements in context: Default";
                         }
                     }
-                    if (response.screenshotIncluded) {
+
+                    if (this.sendScreenshot.checked) {
                         text += " + Screenshot";
-                    }
+                    } 
+
                     contextCount.innerText = text;
                 }
             });
