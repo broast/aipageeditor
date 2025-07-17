@@ -68,22 +68,35 @@
         </h3>
     </div>
 
-    <!-- The area where we display committed style generations that can be regenerated, modified and applied, or removed -->
-    <div id="style-generations"
-        style="display: none;">
+    <menu role="tablist" style="margin-top: 10px;">
+        <li role="tab" aria-selected="true"><a href="#styles-tab">Styles</a></li>
+        <li role="tab"><a href="#content-tab">Content</a></li>
+    </menu>
+    <div class="window" role="tabpanel" id="styles-tab">
+        <div class="window-body">
+            <!-- The area where we display committed style generations that can be regenerated, modified and applied, or removed -->
+            <div id="style-generations"
+                style="display: none;">
+            </div>
+
+            <textarea id="notes" placeholder="Enter changes here..."
+                style="width: 100%; height: 100px; padding: 10px; box-sizing: border-box;"></textarea><br />
+            <div style="text-align:right; padding: 5px;">
+                <input type="checkbox" id="global-style-checkbox" style="margin-left: 10px;"/>
+                <label for="global-style-checkbox">Apply to all websites, not just this domain.</label>
+            </div>
+            <fieldset style="margin: 5px; position: relative;">
+                <button id="save" style="padding: 5px;">🖌️ Generate &amp; Apply</button>
+                <button id="clear" style="padding: 5px;">🗑️ Reset Page</button>
+                <img id="loadingIndicator" src="loading.webp" style="display: none; position:absolute; top: -50%; right: -25px; width: 100px;">
+            </fieldset>
+        </div>
+    </div>
+    <div class="window" role="tabpanel" id="content-tab" style="display: none;">
+        <div class="window-body">
+        </div>
     </div>
 
-    <textarea id="notes" placeholder="Enter changes here..."
-        style="width: 425px; height: 100px; padding: 10px;"></textarea><br />
-    <div style="text-align:right; padding: 5px;">
-        <input type="checkbox" id="global-style-checkbox" style="margin-left: 10px;"/>
-        <label for="global-style-checkbox">Apply to all websites, not just this domain.</label>
-    </div>
-    <fieldset style="margin: 5px; position: relative;">
-        <button id="save" style="padding: 5px;">🖌️ Generate &amp; Apply</button>
-        <button id="clear" style="padding: 5px;">🗑️ Reset Page</button>
-        <img id="loadingIndicator" src="loading.webp" style="display: none; position:absolute; top: -50%; right: -25px; width: 100px;">
-    </fieldset>
     <fieldset style="margin: 0px; padding: 0px; border-left: none; border-right: none; border-bottom:none;" id="advanced-options">
         <legend id="advanced-options-toggle">▶ Advanced options</legend>
         <div id="advanced-options-content">
