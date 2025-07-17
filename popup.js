@@ -528,31 +528,3 @@ window.addEventListener("beforeunload", function () {
         chrome.tabs.sendMessage(tabs[0].id, { action: "runExitElementSelectionMode" });
     });
 });
-
-/*
-// on close, send a signal to update the context label
-window.addEventListener("beforeunload", function () {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        chrome.tabs.sendMessage(tabs[0].id, { action: "runGetElementsInContext" }, (response) => {
-            if (response) {
-                let contextControl = document.getElementById("contextControl");
-                let contextCount = contextControl.querySelector("div");
-                let count = response.count;
-                let text = `Elements in context: ${count}`;
-                if (this.includeDefaultContext.checked) {
-                    if (count > 0) {
-                        text += " + Default";
-                    } else {
-                        text = "Elements in context: Default";
-                    }
-                }
-                if (response.screenshotIncluded) {
-                    text += " + Screenshot";
-                }
-
-                contextCount.innerText = text;
-            }
-        });
-    });
-});
-*/
