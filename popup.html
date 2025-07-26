@@ -40,12 +40,16 @@
             padding: 0px;
         }
 
-        #contextControl div { 
+        #contextControl div.context-count { 
             border: 1px solid black;
             background: #dfdd9a;
             margin-bottom: 10px;
             padding: 5px;
             font-size: 12px !important;
+        }
+
+        #advanced-options {
+            margin-top: 5px !important;
         }
 
         #advanced-options-toggle {
@@ -58,6 +62,30 @@
             overflow: hidden;
             transition: max-height 0.07s ease-out;
         }
+
+        .style-generation-note {
+            width: 300px;
+        }
+
+        #generation-tabs-list li[role="tab"] {
+            width: 100px;
+            font-size: 14px;
+            text-align: center;
+            margin-left:1px;
+            /* vertical gradient from white to transparent */
+            background: linear-gradient(to bottom, #a0aab5, rgb(192, 192, 192));
+        }
+        #generation-tabs-list li[role="tab"][aria-selected="true"] {
+            background: linear-gradient(to bottom, rgb(222, 222, 222), rgb(192, 192, 192));
+        }
+        #generation-tabs-list li[role="tab"] a {
+            color: black;
+            text-shadow: 1px 1px 2px rgba(255, 255, 255, 1);
+        }
+        .generation-tab-panel .window-body {
+            padding: 0px !important;
+            margin: 0px !important;
+        }
     </style>
 </head>
 
@@ -68,11 +96,11 @@
         </h3>
     </div>
 
-    <menu role="tablist" style="margin-top: 10px;">
-        <li role="tab" aria-selected="true"><a href="#styles-tab">Styles</a></li>
-        <li role="tab"><a href="#content-tab">Content</a></li>
+    <menu role="tablist" id="generation-tabs-list" style="margin-top: 10px;">
+        <li role="tab" aria-selected="true"><a href="#styles-tab">🎨 Styles</a></li>
+        <li role="tab"><a href="#content-tab">📄 Content</a></li>
     </menu>
-    <div class="window" role="tabpanel" id="styles-tab">
+    <div class="window generation-tab-panel" role="tabpanel" id="styles-tab">
         <div class="window-body">
             <!-- The area where we display committed style generations that can be regenerated, modified and applied, or removed -->
             <div id="style-generations"
@@ -92,7 +120,7 @@
             </fieldset>
         </div>
     </div>
-    <div class="window" role="tabpanel" id="content-tab">
+    <div class="window generation-tab-panel" role="tabpanel" id="content-tab">
         <div class="window-body">
             
         </div>
