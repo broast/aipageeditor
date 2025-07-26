@@ -17,7 +17,9 @@ class PopupManager {
         this.modelEndpointField = document.getElementById("modelEndpoint");
         this.modelNameField = document.getElementById("modelName");
         this.saveSettingsButton = document.getElementById("saveSettings");
-
+        this.spinner = new HourglassSpinner();
+        
+        this.spinner.animateHourglass();
         this.initEventListeners();
         this.initTabs();
         this.loadGenerations();
@@ -522,6 +524,74 @@ class PopupManager {
             this.updateContextLabel();
         });
     }
+}
+
+class HourglassSpinner {
+    /**
+     * Initializes the HourglassSpinner with default durations and elements.
+     */
+    hourglassElement; // Element to animate
+    emptyingDuration; // Duration for the top-full hourglass (⏳) to
+    pauseAfterEmptyingDuration; // Duration for the bottom-full hourglass (⌛) before rotation
+    rotationDuration; // Duration for the 180-degree rotation
+
+    // constructor
+    constructor() {
+        this.hourglassElement = document.getElementById('hourglass-emoji');
+
+        this.emptyingDuration = 1500; // How long the ⏳ emoji is shown (simulating sand flow)
+        this.pauseAfterEmptyingDuration = 500; // How long the ⌛ emoji is shown before rotation
+        this.rotationDuration = 800; // How long the 180-degree rotation takes (matches CSS animation duration)
+    }
+
+    /**
+     * Initiates the hourglass animation sequence.
+     */
+    animateHourglass() {
+        // Step 1: Start with the top-full hourglass emoji (⏳)
+        this.hourglassElement.textContent = '⏳';
+        // Ensure no rotation class is applied initially, and reset any previous transform
+        this.hourglassElement.classList.remove('rotating');
+        this.hourglassElement.style.transform = 'rotate(0deg)'; // Reset to 0 degrees for 2D rotation
+
+        // Step 2: After 'emptyingDuration', switch to the bottom-full hourglass (⌛)
+        setTimeout(() => {
+            this.hourglassElement.textContent = '⌛'; // Change emoji to bottom-full
+            // Reset transform again to ensure a clean start for the upcoming rotation
+            this.hourglassElement.style.transform = 'rotate(0deg)'; // Ensure 0 degrees before rotation starts
+
+            // Step 3: After 'pauseAfterEmptyingDuration', start the 180-degree rotation
+            setTimeout(() => {
+                this.hourglassElement.classList.add('rotating'); // Apply the rotation animation class
+
+                // Step 4 & 5: Listen for the end of the rotation animation
+                // Use { once: true } to ensure the event listener is removed after it fires once
+                this.hourglassElement.addEventListener('animationend', this.handleRotationEnd.bind(this), { once: true });
+
+            }, this.pauseAfterEmptyingDuration);
+
+        }, this.emptyingDuration);
+    }
+
+    /**
+     * Handles the completion of the 180-degree rotation animation.
+     */
+    handleRotationEnd() {
+        // Remove the rotation class to stop the animation and allow resetting
+        this.hourglassElement.classList.remove('rotating');
+
+        // Crucial "defy gravity" step: After rotation, switch back to the top-full emoji (⏳)
+        // This ensures the visual state is correct for the start of the next cycle.
+        this.hourglassElement.textContent = '⏳';
+
+        // Reset the transform property to its initial state (0 degrees rotation)
+        // This prepares the element for the next rotation cycle, preventing visual glitches.
+        this.hourglassElement.style.transform = 'rotate(0deg)'; // Reset to 0 degrees for next cycle
+
+        // Loop the animation by calling animateHourglass again
+        this.animateHourglass();
+    }
+
 }
 
 document.addEventListener("DOMContentLoaded", function () {
