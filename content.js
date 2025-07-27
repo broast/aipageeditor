@@ -371,6 +371,23 @@ class PageModifier {
         return [...this.selectedElements];
     }
 
+    getSelector(elm) {
+        if (elm.tagName === "BODY") return "BODY";
+        const names = [];
+        while (elm.parentElement && elm.tagName !== "BODY") {
+            if (elm.id) {
+                names.unshift("#" + elm.id);
+                break;
+            } else {
+                let c = 1, e = elm;
+                for (; e.previousElementSibling; e = e.previousElementSibling, c++);
+                names.unshift(elm.tagName + ":nth-child(" + c + ")");
+            }
+            elm = elm.parentElement;
+        }
+        return names.join(" > ");
+    }
+
     getCleanHTMLStructureWithStyles() {
         function getCompressedStyles(el) {
             const computed = getComputedStyle(el);
@@ -589,7 +606,9 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     } else if (message.action === "runExitElementSelectionMode") {
         pageModifier.disableElementSelectionMode();
     } else if (message.action === "runGetElementsInContext") {
-        sendResponse({ count: pageModifier.getElementsForContext().length });
+        const elements = pageModifier.getElementsForContext();
+        const selectors = elements.map(el => pageModifier.getSelector(el));
+        sendResponse({ count: elements.length, selectors: selectors });
     } else if (message.action === "runResetContext") {
         pageModifier.selectedElements.clear();
         pageModifier.disableElementSelectionMode();

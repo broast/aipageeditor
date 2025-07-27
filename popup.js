@@ -71,6 +71,7 @@ class PopupManager {
 
     initEventListeners() {
         this.stylesSaveButton.addEventListener("click", () => this.saveNote());
+        this.contentSaveButton.addEventListener("click", () => this.saveContent());
         this.stylesClearButton.addEventListener("click", () => this.clearAll());
         this.addElementToContextButton.addEventListener("click", () => this.addElementToContext());
         this.resetContextButton.addEventListener("click", () => this.resetContext());
@@ -167,6 +168,36 @@ class PopupManager {
 
     updateSaveButtonState() {
         this.stylesSaveButton.disabled = this.stylesNotesField.value.trim() === "";
+    }
+
+    async saveContent() {
+        const note = this.contentNotesField.value;
+        if (note.trim() === "") {
+            return;
+        }
+
+        const tabs = await this.getActiveTabs();
+        const url = new URL(tabs[0].url);
+        const domain = url.hostname;
+
+        chrome.tabs.sendMessage(tabs[0].id, { action: "runGetElementsInContext" }, (response) => {
+            if (response && response.selectors) {
+                const generationData = {
+                    id: "content-" + Date.now(),
+                    note: note,
+                    selectors: response.selectors,
+                    visible: true
+                };
+
+                chrome.storage.local.get([domain + "_content"], (result) => {
+                    let data = result[domain + "_content"] || { generations: [] };
+                    data.generations.push(generationData);
+                    chrome.storage.local.set({ [domain + "_content"]: data }, () => {
+                        console.log("Content generation data saved:", generationData);
+                    });
+                });
+            }
+        });
     }
 
     async saveNote() {
