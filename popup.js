@@ -1,14 +1,20 @@
 class PopupManager {
     constructor() {
-        this.notesField = document.getElementById("notes");
-        this.saveButton = document.getElementById("save");
-        this.clearButton = document.getElementById("clear");
+        this.stylesNotesField = document.getElementById("notes");
+        this.stylesSaveButton = document.getElementById("save");
+        this.stylesClearButton = document.getElementById("clear");
+
+        this.contentNotesField = document.getElementById("contentGenerationNote");
+        this.contentSaveButton = document.getElementById("saveContent");
+        this.contentClearButton = document.getElementById("clearContent");
+
+        this.globalStyleCheckbox = document.getElementById("global-style-checkbox");
+        this.loadingIndicator = document.getElementById("loadingIndicator");
+        this.spinner = new HourglassSpinner();
+
         this.addElementToContextButton = document.getElementById("addElementToContext");
         this.resetContextButton = document.getElementById("resetContext");
-        this.loadingIndicator = document.getElementById("loadingIndicator");
-        this.styleGenerations = document.getElementById("style-generations");
         this.includeDefaultContext = document.getElementById("includeDefaultContext");
-        this.globalStyleCheckbox = document.getElementById("global-style-checkbox");
         this.sendScreenshot = document.getElementById("sendScreenshot");
         this.includeChangeHistory = document.getElementById("includeChangeHistory");
         this.includeGlobalChangeHistory = document.getElementById("includeGlobalChangeHistory");
@@ -17,7 +23,8 @@ class PopupManager {
         this.modelEndpointField = document.getElementById("modelEndpoint");
         this.modelNameField = document.getElementById("modelName");
         this.saveSettingsButton = document.getElementById("saveSettings");
-        this.spinner = new HourglassSpinner();
+        
+        this.styleGenerations = document.getElementById("style-generations");
 
         this.spinner.animateHourglass();
         this.initEventListeners();
@@ -63,8 +70,8 @@ class PopupManager {
 
 
     initEventListeners() {
-        this.saveButton.addEventListener("click", () => this.saveNote());
-        this.clearButton.addEventListener("click", () => this.clearAll());
+        this.stylesSaveButton.addEventListener("click", () => this.saveNote());
+        this.stylesClearButton.addEventListener("click", () => this.clearAll());
         this.addElementToContextButton.addEventListener("click", () => this.addElementToContext());
         this.resetContextButton.addEventListener("click", () => this.resetContext());
         this.includeDefaultContext.addEventListener("change", () => {
@@ -94,7 +101,7 @@ class PopupManager {
         this.modelEndpointField.addEventListener("input", debouncedSave);
         this.modelNameField.addEventListener("input", debouncedSave);
 
-        this.notesField.addEventListener("input", () => this.updateSaveButtonState());
+        this.stylesNotesField.addEventListener("input", () => this.updateSaveButtonState());
         this.updateSaveButtonState();
 
         document.getElementById("advanced-options-toggle").addEventListener("click", () => {
@@ -159,11 +166,11 @@ class PopupManager {
     }
 
     updateSaveButtonState() {
-        this.saveButton.disabled = this.notesField.value.trim() === "";
+        this.stylesSaveButton.disabled = this.stylesNotesField.value.trim() === "";
     }
 
     async saveNote() {
-        let note = this.notesField.value;
+        let note = this.stylesNotesField.value;
         if (note.trim() === "") {
             return;
         }
@@ -197,7 +204,7 @@ class PopupManager {
     }
 
     async clearAll() {
-        this.notesField.value = "";
+        this.stylesNotesField.value = "";
         const tabs = await this.getActiveTabs();
         const url = new URL(tabs[0].url);
         const domain = url.hostname;
