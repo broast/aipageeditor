@@ -115,7 +115,7 @@ The browser is Chrome, so you can use any css that works in Chrome. These styles
         } else {
             responseData = responseData.choices[0].message.content;
         }
-        return {css: responseData, requestBody: requestInfo.body};
+        return { css: responseData, requestBody: requestInfo.body };
     }
 }
 
@@ -185,7 +185,7 @@ class PageModifier {
             setTimeout(() => toast.remove(), 300);
         }, duration);
     }
-    
+
     showAndReturnPersistentToast(message) {
         const toast = document.createElement('div');
         toast.className = 'AIPE_toast';
@@ -291,7 +291,7 @@ class PageModifier {
         this.elementSelectorHandlers.over = e => {
             const el = e.target;
             if (el === document.body || this.hoverOverlay?.element === el) return;
-            
+
             if (this.hoverOverlay) {
                 this.hoverOverlay.overlay.remove();
                 this.hoverOverlay = null;
@@ -371,66 +371,85 @@ class PageModifier {
         return [...this.selectedElements];
     }
 
-    getSelector(elm) {
-        if (elm.tagName === "BODY") return "BODY";
-        const names = [];
-        while (elm.parentElement && elm.tagName !== "BODY") {
-            if (elm.id) {
-                names.unshift("#" + elm.id);
-                break;
-            } else {
-                let c = 1, e = elm;
-                for (; e.previousElementSibling; e = e.previousElementSibling, c++);
-                names.unshift(elm.tagName + ":nth-child(" + c + ")");
-            }
-            elm = elm.parentElement;
+    /**
+     * Generates a generic CSS selector for a given HTML element.
+     * This function prioritizes the element's tag name and class names,
+     * explicitly avoiding the 'id' attribute to create a selector that
+     * can find similar elements rather than an exact, unique element.
+     *
+     * @param {HTMLElement} element The HTML element for which to generate the selector.
+     * @returns {string} A generic CSS selector string (e.g., 'div.some-class.another-class', 'button').
+     * Returns an empty string if the element is null or undefined.
+     */
+    getSelector(element) {
+        // Return an empty string if the element is not valid
+        if (!element || !(element instanceof HTMLElement)) {
+            console.warn("Invalid element provided to getSelectors function.");
+            return '';
         }
-        return names.join(" > ");
-    }
 
+        // Start with the tag name (e.g., 'div', 'button', 'p')
+        let selector = element.tagName.toLowerCase();
+
+        // Add class names if they exist
+        // element.classList returns a DOMTokenList, which can be easily joined
+        if (element.classList.length > 0) {
+            // Prepend each class with a dot ('.') and join them
+            selector += '.' + Array.from(element.classList).join('.');
+        }
+
+        // You could extend this to include other generic attributes if needed,
+        // but for "similar elements" and avoiding 'id', tag + class is usually sufficient.
+        // Example for data-attributes (uncomment if desired):
+        // if (element.hasAttribute('data-type')) {
+        //     selector += `[data-type="${element.getAttribute('data-type')}"]`;
+        // }
+
+        return selector;
+    }
     getCleanHTMLStructureWithStyles() {
         function getCompressedStyles(el) {
             const computed = getComputedStyle(el);
             const defaultStyles = getComputedStyle(document.createElement(el.tagName));
-    
+
             let stylePairs = [];
-    
-            const propsToInclude = ['color', 'width', 'height','top','left','margin','padding','border'
+
+            const propsToInclude = ['color', 'width', 'height', 'top', 'left', 'margin', 'padding', 'border'
             ];
-    
+
             for (let prop of propsToInclude) {
                 const value = computed.getPropertyValue(prop);
                 const defaultValue = defaultStyles.getPropertyValue(prop);
                 const shorthandProp = prop.replace(/a|e|i|o|u/g, '');
-    
+
                 if (value !== defaultValue) {
                     stylePairs.push(`${shorthandProp}:${value}`);
                 }
             }
-    
+
             const bgColor = getEffectiveBackgroundColor(el);
             if (bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent') {
                 stylePairs.push(`bgColor:${bgColor}`);
             }
-    
+
             return stylePairs.length ? ` computedStyles="${stylePairs.join(';')}"` : '';
         }
         function getEffectiveBackgroundColor(element) {
             while (element) {
-              const bg = getComputedStyle(element).backgroundColor;
-              if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
-                return bg;
-              }
-              element = element.parentElement;
+                const bg = getComputedStyle(element).backgroundColor;
+                if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
+                    return bg;
+                }
+                element = element.parentElement;
             }
             return null;
-          }
-    
-    
+        }
+
+
         function buildTag(node) {
             if (node.nodeType !== Node.ELEMENT_NODE) return '';
-            const allowedTags = ['html','body','div', 'span', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a', 'button', 'img', 'table', 'tr', 'td','section', 'article', 'header', 'footer', 'nav', 'aside', 'main', 'ul', 'ol', 'li', 'form', 'input', 'select', 'textarea'];
-           
+            const allowedTags = ['html', 'body', 'div', 'span', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a', 'button', 'img', 'table', 'tr', 'td', 'section', 'article', 'header', 'footer', 'nav', 'aside', 'main', 'ul', 'ol', 'li', 'form', 'input', 'select', 'textarea'];
+
             let previousChildren = [];
             if (!allowedTags.includes(node.tagName.toLowerCase()) && node.children.length > 0) {
                 let children = '';
@@ -446,7 +465,7 @@ class PageModifier {
             } else if (!allowedTags.includes(node.tagName.toLowerCase())) {
                 return '';
             }
-    
+
             const tag = node.tagName.toLowerCase();
             const id = node.id ? ` id=\"${node.id}\"` : '';
             const cls = node.className ? ` class=\"${node.className}\"` : '';
@@ -455,19 +474,19 @@ class PageModifier {
             const innerTextAttr = node.innerText ? ` text=\"${truncatedInnerText}\"` : '';
             const open = `<${tag}${id}${cls}${style}${innerTextAttr}>`;
             const close = `</${tag}>`;
-    
+
             let children = '';
-            for (let child of node.children) {                
+            for (let child of node.children) {
                 let tagClass = child.tagName.toLowerCase() + child.className;
                 if (previousChildren.includes(tagClass)) {
                     continue;
                 }
                 children += buildTag(child);
             }
-    
+
             return `${open}${children}${close}`;
         }
-    
+
         return buildTag(document.documentElement);
     }
 
@@ -495,7 +514,7 @@ class PageModifier {
         let url = new URL(window.location.href);
         let domain = url.hostname;
         let result = await Storage.get(["global_styles", domain]);
-        
+
         let globalData = result["global_styles"];
         if (globalData && globalData.generations) {
             globalData.generations.forEach((generation) => {
@@ -560,7 +579,7 @@ async function processUserNote(note, existingId = null, apiKey, modelEndpoint, m
             return el.outerHTML;
         }).join("\n");
 
-        const {css, requestBody} = await openAI.generateCss(note, cleanedHtmlStructure, selectedElementsHtml, screenshotUrl, changeHistory);
+        const { css, requestBody } = await openAI.generateCss(note, cleanedHtmlStructure, selectedElementsHtml, screenshotUrl, changeHistory);
 
         let generationId = existingId ? existingId : crypto.randomUUID();
         let generationData = {
