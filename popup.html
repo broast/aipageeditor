@@ -28,7 +28,7 @@
         }
 
         button,
-        .style-generation-note,
+        .style-generation-note, #contentGenerationNote,
         #notes {
             font-size: 14px !important;
             font-weight: bold !important;
@@ -169,7 +169,7 @@
             </div>
             <fieldset style="margin: 5px; position: relative;">
                 <button id="save" style="padding: 5px;">🖌️ Generate &amp; Apply</button>
-                <button id="clear" style="padding: 5px;">🗑️ Reset Page</button>
+                <button id="clear" style="padding: 5px;">🗑️ Reset Styles</button>
                 <div id="loadingIndicator" class="hourglass-container">
                     <span id="hourglass-emoji" class="hourglass-emoji rotating">⏳</span>
                 </div>
@@ -178,7 +178,17 @@
     </div>
     <div class="window generation-tab-panel" role="tabpanel" id="content-tab">
         <div class="window-body">
-
+            <div id="content-generations" style="display: none;">
+            </div>
+            <textarea id="contentGenerationNote" placeholder="Enter changes here..."
+                style="width: 100%; height: 100px; padding: 10px; box-sizing: border-box;"></textarea><br />
+            <div style="text-align:center;">
+                <p id="contentGenerationRequiresElementSelectionWarning">Content generation requires at least one element to be added to the context. <a href="#" id="contentGenerationAddElementLink">Add an element</a>.</p>
+            </div>
+            <fieldset style="margin: 5px; position: relative;">
+                <button id="saveContent" style="padding: 5px;">✏️ Apply Changes</button>
+                <button id="clearContent" style="padding: 5px;">🗑️ Reset Content</button>
+            </fieldset>
         </div>
     </div>
 

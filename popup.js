@@ -18,7 +18,7 @@ class PopupManager {
         this.modelNameField = document.getElementById("modelName");
         this.saveSettingsButton = document.getElementById("saveSettings");
         this.spinner = new HourglassSpinner();
-        
+
         this.spinner.animateHourglass();
         this.initEventListeners();
         this.initTabs();
@@ -539,9 +539,9 @@ class HourglassSpinner {
     constructor() {
         this.hourglassElement = document.getElementById('hourglass-emoji');
 
-        this.emptyingDuration = 1500; 
-        this.pauseAfterEmptyingDuration = 500; 
-        this.rotationDuration = 800; 
+        this.emptyingDuration = 1500;
+        this.pauseAfterEmptyingDuration = 500;
+        this.rotationDuration = 800;
     }
 
     /**
@@ -553,11 +553,11 @@ class HourglassSpinner {
         this.hourglassElement.style.transform = 'rotate(0deg)';
 
         setTimeout(() => {
-            this.hourglassElement.textContent = '⌛'; 
-            this.hourglassElement.style.transform = 'rotate(0deg)'; 
+            this.hourglassElement.textContent = '⌛';
+            this.hourglassElement.style.transform = 'rotate(0deg)';
 
             setTimeout(() => {
-                this.hourglassElement.classList.add('rotating'); 
+                this.hourglassElement.classList.add('rotating');
 
                 this.hourglassElement.addEventListener('animationend', this.handleRotationEnd.bind(this), { once: true });
 
