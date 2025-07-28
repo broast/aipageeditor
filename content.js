@@ -107,6 +107,11 @@ The browser is Chrome, so you can use any css that works in Chrome. These styles
         };
 
         const response = await fetch(this.modelEndpoint, requestInfo);
+        if (!response.ok) {
+            const error = new Error(`HTTP error! status: ${response.status}`);
+            error.response = response;
+            throw error;
+        }
         let responseData = await response.json();
 
         if (responseData.choices[0].message.content.startsWith("```css\n")) {
@@ -542,69 +547,94 @@ async function processUserNote(note, existingId = null, apiKey, modelEndpoint, m
     const openAI = new OpenAI(apiKey, modelEndpoint, modelName);
     let url = new URL(window.location.href);
     let domain = isGlobal ? "global_styles" : url.hostname;
-    if (note) {
-        let cleanedHtmlStructure = "";
-        if (includeDefaultContext) {
-            cleanedHtmlStructure = pageModifier.getCleanHTMLStructureWithStyles();
-            if (cleanedHtmlStructure.length > 10000) {
-                let start = Math.floor(Math.random() * (cleanedHtmlStructure.length - 10000));
-                cleanedHtmlStructure = cleanedHtmlStructure.slice(start, start + 10000);
-            }
-        }
-
-        let changeHistory = [];
-        if (includeChangeHistory) {
-            let domainData = await Storage.get(domain);
-            if (domainData[domain] && domainData[domain].generations) {
-                changeHistory = changeHistory.concat(domainData[domain].generations);
-            }
-
-            if (includeGlobalChangeHistory) {
-                let globalData = await Storage.get("global_styles");
-                if (globalData["global_styles"] && globalData["global_styles"].generations) {
-                    changeHistory = changeHistory.concat(globalData["global_styles"].generations);
+    try {
+        if (note) {
+            let cleanedHtmlStructure = "";
+            if (includeDefaultContext) {
+                cleanedHtmlStructure = pageModifier.getCleanHTMLStructureWithStyles();
+                if (cleanedHtmlStructure.length > 10000) {
+                    let start = Math.floor(Math.random() * (cleanedHtmlStructure.length - 10000));
+                    cleanedHtmlStructure = cleanedHtmlStructure.slice(start, start + 10000);
                 }
             }
 
-            changeHistory.sort((a, b) => {
-                return new Date(b.timestamp) - new Date(a.timestamp);
+            let changeHistory = [];
+            if (includeChangeHistory) {
+                let domainData = await Storage.get(domain);
+                if (domainData[domain] && domainData[domain].generations) {
+                    changeHistory = changeHistory.concat(domainData[domain].generations);
+                }
+
+                if (includeGlobalChangeHistory) {
+                    let globalData = await Storage.get("global_styles");
+                    if (globalData["global_styles"] && globalData["global_styles"].generations) {
+                        changeHistory = changeHistory.concat(globalData["global_styles"].generations);
+                    }
+                }
+
+                changeHistory.sort((a, b) => {
+                    return new Date(b.timestamp) - new Date(a.timestamp);
+                });
+                changeHistory = changeHistory.slice(0, 10);
+            }
+
+            pageModifier.showToast("Generating new styles for this page...", 3000);
+
+            var selectedElements = pageModifier.getElementsForContext();
+            var selectedElementsHtml = selectedElements.map(el => {
+                return el.outerHTML;
+            }).join("\n");
+
+            const { css, requestBody } = await openAI.generateCss(note, cleanedHtmlStructure, selectedElementsHtml, screenshotUrl, changeHistory);
+
+            let generationId = existingId ? existingId : crypto.randomUUID();
+            let generationData = {
+                note: note,
+                styles: css,
+                requestBody: requestBody,
+                id: generationId,
+                timestamp: new Date().toISOString()
+            }
+
+
+            if (visible !== null) {
+                generationData.visible = visible;
+            } else if (!existingId) {
+                generationData.visible = true;
+            }
+
+            await Storage.addGeneration(domain, generationData);
+
+            if (generationData.visible !== false) {
+                pageModifier.applyCssRulesToPage(css, generationId);
+            }
+
+            pageModifier.showToast("Styles applied to page!", 3000);
+            chrome.runtime.sendMessage({ action: "updatePopup", domain: domain, data: generationData });
+        }
+    } catch (e) {
+        if (e.response) {
+            e.response.json().then(errorData => {
+                if (errorData.error && errorData.error.code === 'invalid_api_key') {
+                    pageModifier.showToast("Invalid API Key. Please check your settings.", 5000);
+                } else {
+                    const message = errorData.error?.message || `API Error: ${e.response.status}`;
+                    pageModifier.showToast(message, 5000);
+                }
+            }).catch(() => {
+                // Fallback for non-JSON responses or other parsing errors
+                if (e.response.status === 401) {
+                    pageModifier.showToast("Invalid API Key. Please check your settings.", 5000);
+                } else {
+                    pageModifier.showToast(`Error: ${e.response.statusText} (${e.response.status})`, 5000);
+                }
             });
-            changeHistory = changeHistory.slice(0, 10);
+        } else {
+            console.error("Error generating styles:", e);
+            pageModifier.showToast("Network error or invalid request. Please try again.", 5000);
         }
-
-        pageModifier.showToast("Generating new styles for this page...", 3000);
-
-        var selectedElements = pageModifier.getElementsForContext();
-        var selectedElementsHtml = selectedElements.map(el => {
-            return el.outerHTML;
-        }).join("\n");
-
-        const { css, requestBody } = await openAI.generateCss(note, cleanedHtmlStructure, selectedElementsHtml, screenshotUrl, changeHistory);
-
-        let generationId = existingId ? existingId : crypto.randomUUID();
-        let generationData = {
-            note: note,
-            styles: css,
-            requestBody: requestBody,
-            id: generationId,
-            timestamp: new Date().toISOString()
-        }
-
-
-        if (visible !== null) {
-            generationData.visible = visible;
-        } else if (!existingId) {
-            generationData.visible = true;
-        }
-
-        await Storage.addGeneration(domain, generationData);
-
-        if (generationData.visible !== false) {
-            pageModifier.applyCssRulesToPage(css, generationId);
-        }
-
-        pageModifier.showToast("Styles applied to page!", 3000);
-        chrome.runtime.sendMessage({ action: "updatePopup", domain: domain, data: generationData });
+    } finally {
+        chrome.runtime.sendMessage({ action: "hideSpinner" });
     }
 }
 

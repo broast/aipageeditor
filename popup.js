@@ -123,6 +123,8 @@ class PopupManager {
             if (message.action === "updatePopup") {
                 this.styleGenerations.innerHTML = "";
                 this.loadGenerations();
+            } else if (message.action === "hideSpinner") {
+                this.loadingIndicator.style.display = "none";
             }
         });
 
@@ -667,19 +669,27 @@ class PopupManager {
 
     loadSettings() {
         chrome.storage.local.get(['aipe_settings'], (result) => {
-            const settings = result.aipe_settings;
-            if (settings) {
-                this.apiKeyField.value = settings.apiKey || '';
-                this.modelEndpointField.value = settings.modelEndpoint || 'https://api.openai.com/v1/chat/completions';
-                this.modelNameField.value = settings.modelName || 'gpt-4.1';
-            }
+            const settings = result.aipe_settings || {};
+            this.apiKeyField.value = settings.apiKey || '';
+            this.modelEndpointField.value = settings.modelEndpoint || 'https://api.openai.com/v1/chat/completions';
+            this.modelNameField.value = settings.modelName || 'gpt-4.1';
         });
     }
 
     getSettings() {
         return new Promise((resolve) => {
             chrome.storage.local.get(['aipe_settings'], (result) => {
-                resolve(result.aipe_settings || {});
+                const settings = result.aipe_settings || {};
+                const defaults = {
+                    apiKey: '',
+                    modelEndpoint: 'https://api.openai.com/v1/chat/completions',
+                    modelName: 'gpt-4.1'
+                };
+                resolve({
+                    apiKey: settings.apiKey || defaults.apiKey,
+                    modelEndpoint: settings.modelEndpoint || defaults.modelEndpoint,
+                    modelName: settings.modelName || defaults.modelName
+                });
             });
         });
     }
