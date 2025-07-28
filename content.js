@@ -1,24 +1,24 @@
 
 
 class Storage {
-    static get(domain) {
+    static get(key) {
         return new Promise((resolve) => {
-            chrome.storage.local.get(domain, (result) => {
-                resolve(result);
+            chrome.storage.local.get(key, (result) => {
+                resolve(result[key]);
             });
         });
     }
 
-    static set(domain, data) {
+    static set(key, data) {
         return new Promise((resolve) => {
-            chrome.storage.local.set({ [domain]: data }, () => {
+            chrome.storage.local.set({ [key]: data }, () => {
                 resolve();
             });
         });
     }
 
     static async addGeneration(domain, generationData) {
-        let data = (await this.get(domain))[domain] || {};
+        let data = await this.get(domain) || {};
         if (!data.generations) {
             data.generations = [];
         }
@@ -43,6 +43,35 @@ class Storage {
             return this.set(domain, data);
         }
     }
+
+    static async addContentGeneration(domain, generationData) {
+        const key = domain + "_content";
+        let data = await this.get(key) || {};
+        if (!data.generations) {
+            data.generations = [];
+        }
+        let existingGeneration = null;
+        if (generationData.id) {
+            existingGeneration = data.generations.find(g => g.id === generationData.id);
+            data.generations = data.generations.filter(g => g.id !== generationData.id);
+        }
+
+        if (existingGeneration && generationData.visible === undefined) {
+            generationData.visible = existingGeneration.visible;
+        }
+
+        data.generations.push(generationData);
+        return this.set(key, data);
+    }
+
+    static async removeContentGeneration(domain, generationId) {
+        const key = domain + "_content";
+        let data = await this.get(key);
+        if (data && data.generations) {
+            data.generations = data.generations.filter(g => g.id !== generationId);
+            return this.set(key, data);
+        }
+    }
 }
 
 class OpenAI {
@@ -50,6 +79,57 @@ class OpenAI {
         this.apiKey = apiKey;
         this.modelEndpoint = modelEndpoint;
         this.modelName = modelName;
+    }
+
+    async generateContent(note, outerHtml, selectedElements) {
+        const selectedElementsPrompt = selectedElements ? `The user has selected the following elements html to include in the context: ${selectedElements}` : "";
+
+        const userContent = [
+            {
+                type: "text",
+                text: `These are the users notes for this website: ${note}\n\n${selectedElementsPrompt}\nHere is the outer html of the element to be rewritten: ${outerHtml}\n\nAs a reminder, the users notes are: ${note}. Please return HTML that will replace the html of the element to match the users notes.. do not confuse the words in the users notes for class names or tags, the user does not know about those and can not see those!! The user only provides visual changes to the user experience. \n\nNote: Please Do Not change anything the user does not ask you to change.... you will be rewarded as always for high quality work only. Thank you!!! (You have currently earned 7,830 rewards and are on a 23 day streak) `
+            }
+        ];
+
+        const headers = {
+            "Content-Type": "application/json",
+        };
+        if (this.apiKey) {
+            headers["Authorization"] = `Bearer ${this.apiKey}`;
+        }
+
+        const requestInfo = {
+            method: "POST",
+            headers: headers,
+            body: JSON.stringify({
+                model: this.modelName,
+                messages: [
+                    {
+                        role: "system", content: `You are a web browser html bot. You use the notes provided by the user to help alter the html of an element on the page based on those instructions in those notes.\nYou will be given the outer html of the page. Please return custom html to be applied to the page, which will be injected into the page.\n\nFor example, if the command is make all text bigger, your response could be:\n<h1 style="font-size: 20px;">All text is bigger</h1>\n\nDo not respond with any other text. Only respond with the html, as your responses are being processed by a machine.\nThe browser is Chrome, so you can use any html that works in Chrome.\n`
+                    },
+                    {
+                        role: "user", content: userContent
+                    },
+
+                ]
+            })
+        };
+
+        const response = await fetch(this.modelEndpoint, requestInfo);
+        if (!response.ok) {
+            const error = new Error(`HTTP error! status: ${response.status}`);
+            error.response = response;
+            throw error;
+        }
+        let responseData = await response.json();
+
+        if (responseData.choices[0].message.content.startsWith("```html\n")) {
+            responseData = responseData.choices[0].message.content.replace("```html\n", "");
+            responseData = responseData.replace("```", "");
+        } else {
+            responseData = responseData.choices[0].message.content;
+        }
+        return { html: responseData, requestBody: requestInfo.body };
     }
 
     async generateCss(note, htmlStructure, selectedElementsHtml, screenshotUrl = null, changeHistory = []) {
@@ -79,25 +159,22 @@ class OpenAI {
             });
         }
 
+        const headers = {
+            "Content-Type": "application/json",
+        };
+        if (this.apiKey) {
+            headers["Authorization"] = `Bearer ${this.apiKey}`;
+        }
+
         const requestInfo = {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${this.apiKey}`,
-            },
+            headers: headers,
             body: JSON.stringify({
                 model: this.modelName,
                 messages: [
                     {
-                        role: "system", content: `You are a web browser css bot. You use the notes provided by the user to help alter the css styles of the page based on those instructions in those notes.
-You will be given the source html of the page. Please return custom css rules to be applied to the page, which will be injected into the page.
-
-For example, if the command is make all text bigger, your response could be:
-* { font-size: 20px; }
-
-Do not respond with any other text. Only respond with the css rules, as your responses are being processed by a machine.
-The browser is Chrome, so you can use any css that works in Chrome. These styles will likely be at the top of the file, so you may use !important if needed.
-` },
+                        role: "system", content: `You are a web browser css bot. You use the notes provided by the user to help alter the css styles of the page based on those instructions in those notes.\nYou will be given the source html of the page. Please return custom css rules to be applied to the page, which will be injected into the page.\n\nFor example, if the command is make all text bigger, your response could be:\n* { font-size: 20px; }\n\nDo not respond with any other text. Only respond with the css rules, as your responses are being processed by a machine.\nThe browser is Chrome, so you can use any css that works in Chrome. These styles will likely be at the top of the file, so you may use !important if needed.\n`
+                    },
                     {
                         role: "user", content: userContent
                     },
@@ -472,11 +549,11 @@ class PageModifier {
             }
 
             const tag = node.tagName.toLowerCase();
-            const id = node.id ? ` id=\"${node.id}\"` : '';
-            const cls = node.className ? ` class=\"${node.className}\"` : '';
+            const id = node.id ? ` id="${node.id}"` : '';
+            const cls = node.className ? ` class="${node.className}"` : '';
             const style = getCompressedStyles(node);
             const truncatedInnerText = node.innerText && node.innerText.length > 15 ? node.innerText.slice(0, 15) + "..." : node.innerText;
-            const innerTextAttr = node.innerText ? ` text=\"${truncatedInnerText}\"` : '';
+            const innerTextAttr = node.innerText ? ` text="${truncatedInnerText}"` : '';
             const open = `<${tag}${id}${cls}${style}${innerTextAttr}>`;
             const close = `</${tag}>`;
 
@@ -518,9 +595,8 @@ class PageModifier {
         this.clearAllAIPEStylesFromPage();
         let url = new URL(window.location.href);
         let domain = url.hostname;
-        let result = await Storage.get(["global_styles", domain]);
-
-        let globalData = result["global_styles"];
+        
+        let globalData = await Storage.get("global_styles");
         if (globalData && globalData.generations) {
             globalData.generations.forEach((generation) => {
                 if (generation.visible !== false) {
@@ -529,7 +605,7 @@ class PageModifier {
             });
         }
 
-        let domainData = result[domain];
+        let domainData = await Storage.get(domain);
         if (domainData && domainData.generations) {
             domainData.generations.forEach((generation) => {
                 if (generation.visible !== false) {
@@ -561,14 +637,14 @@ async function processUserNote(note, existingId = null, apiKey, modelEndpoint, m
             let changeHistory = [];
             if (includeChangeHistory) {
                 let domainData = await Storage.get(domain);
-                if (domainData[domain] && domainData[domain].generations) {
-                    changeHistory = changeHistory.concat(domainData[domain].generations);
+                if (domainData && domainData.generations) {
+                    changeHistory = changeHistory.concat(domainData.generations);
                 }
 
                 if (includeGlobalChangeHistory) {
                     let globalData = await Storage.get("global_styles");
-                    if (globalData["global_styles"] && globalData["global_styles"].generations) {
-                        changeHistory = changeHistory.concat(globalData["global_styles"].generations);
+                    if (globalData && globalData.generations) {
+                        changeHistory = changeHistory.concat(globalData.generations);
                     }
                 }
 
@@ -662,7 +738,78 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
         pageModifier.selectedElements.clear();
         pageModifier.disableElementSelectionMode();
         sendResponse({ success: true });
+    } else if (message.action === 'runProcessContentGeneration') {
+        const { note, id, visible, apiKey, modelEndpoint, modelName, selectors, selectedElements } = message;
+        const settings = { apiKey, modelEndpoint, modelName };
+        const generation = { note, id, visible, selectors, selectedElements };
+        await runGeneration(generation, settings);
     }
 });
 
+async function runGeneration(generation, settings) {
+    if (!settings.modelEndpoint) {
+        pageModifier.showToast("Model endpoint is missing. Please configure it in settings.", 5000);
+        chrome.runtime.sendMessage({ action: "hideSpinner" });
+        return;
+    }
+
+    const openAI = new OpenAI(settings.apiKey, settings.modelEndpoint, settings.modelName);
+    const elements = document.querySelectorAll(generation.selectors.join(","));
+    let totalElements = elements.length;
+
+    if (totalElements === 0) {
+        chrome.runtime.sendMessage({ action: "hideSpinner" });
+        return;
+    }
+
+    let processedElements = 0;
+    pageModifier.showToast(`Found ${totalElements} elements to process...`);
+    
+    for (const element of elements) {
+        let persistentToast;
+        try {
+            processedElements++;
+            persistentToast = pageModifier.showAndReturnPersistentToast(`Processing element ${processedElements} of ${totalElements}...`);
+            const { html } = await openAI.generateContent(generation.note, element.outerHTML, generation.selectedElements);
+            element.outerHTML = html;
+            pageModifier.removeToast(persistentToast);
+        } catch (e) {
+            console.error("Error generating content:", e);
+            if(persistentToast) pageModifier.removeToast(persistentToast);
+
+            if (e.response && e.response.status === 401) {
+                pageModifier.showToast("API key is invalid or missing.", 5000);
+            } else if (e.message.includes("Failed to fetch")) {
+                pageModifier.showToast("Failed to connect to the model endpoint.", 5000);
+            } else {
+                pageModifier.showToast(`Error processing element ${processedElements} of ${totalElements}.`);
+            }
+            // On any error, stop and hide spinner.
+            chrome.runtime.sendMessage({ action: "hideSpinner" });
+            return;
+        }
+    }
+
+    if (totalElements > 0) {
+        pageModifier.showToast(`Content generation complete. Processed ${processedElements} elements.`);
+    }
+    chrome.runtime.sendMessage({ action: "hideSpinner" });
+}
+
+async function processContentGeneration() {
+    let url = new URL(window.location.href);
+    let domain = url.hostname;
+    let { aipe_settings } = await chrome.storage.local.get("aipe_settings");
+    const settings = aipe_settings || {};
+    let domainData = await Storage.get(domain + "_content");
+    
+    if (domainData && domainData.generations) {
+        for (const generation of domainData.generations) {
+            if(generation.visible === false) continue;
+            await runGeneration(generation, settings);
+        }
+    }
+}
+
 pageModifier.clearAndReApplyAllGenerations();
+processContentGeneration();

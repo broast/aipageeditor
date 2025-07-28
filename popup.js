@@ -211,7 +211,7 @@ class PopupManager {
         }
         this.loadingIndicator.style.display = "block";
         const tabs = await this.getActiveTabs();
-        const settings = await this.getSettings();
+        const settings = this.getSettingsFromInputs();
         const isGlobal = this.globalStyleCheckbox.checked;
 
         const sendMessage = (screenshotUrl = null) => {
@@ -363,7 +363,7 @@ class PopupManager {
         regenerateButton.addEventListener("click", async () => {
             this.loadingIndicator.style.display = "block";
             const tabs = await this.getActiveTabs();
-            const settings = await this.getSettings();
+            const settings = this.getSettingsFromInputs();
             chrome.tabs.sendMessage(tabs[0].id, {
                 action: "runProcessUserNote",
                 note: generationData.note,
@@ -393,7 +393,7 @@ class PopupManager {
             let newNote = noteDiv.innerText;
             generationData.note = newNote;
             this.loadingIndicator.style.display = "block";
-            const settings = await this.getSettings();
+            const settings = this.getSettingsFromInputs();
             const tabs = await this.getActiveTabs();
             chrome.tabs.sendMessage(tabs[0].id, {
                 action: "runProcessUserNote",
@@ -557,7 +557,20 @@ class PopupManager {
         let regenerateButton = document.createElement('button');
         regenerateButton.innerText = '🦎 Regenerate';
         regenerateButton.addEventListener('click', async () => {
-            // For now, we are not implementing the functionality
+            this.loadingIndicator.style.display = 'block';
+            const tabs = await this.getActiveTabs();
+            const settings = this.getSettingsFromInputs();
+            chrome.tabs.sendMessage(tabs[0].id, {
+                action: 'runProcessContentGeneration',
+                note: generationData.note,
+                id: generationData.id,
+                visible: generationData.visible,
+                apiKey: settings.apiKey,
+                modelEndpoint: settings.modelEndpoint,
+                modelName: settings.modelName,
+                selectors: generationData.selectors,
+                selectedElements: generationData.selectedElements
+            });
         });
     
         let modifyButton = document.createElement('button');
@@ -692,6 +705,14 @@ class PopupManager {
                 });
             });
         });
+    }
+
+    getSettingsFromInputs() {
+        return {
+            apiKey: this.apiKeyField.value,
+            modelEndpoint: this.modelEndpointField.value,
+            modelName: this.modelNameField.value
+        };
     }
 
     debounce(func, delay) {
