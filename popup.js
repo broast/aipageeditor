@@ -25,11 +25,13 @@ class PopupManager {
         this.saveSettingsButton = document.getElementById("saveSettings");
         
         this.styleGenerations = document.getElementById("style-generations");
+        this.contentGenerations = document.getElementById("content-generations");
 
         this.spinner.animateHourglass();
         this.initEventListeners();
         this.initTabs();
         this.loadGenerations();
+        this.loadContentGenerations();
         this.loadSettings();
         this.updateTitle();
         this.loadContextSettings();
@@ -193,7 +195,7 @@ class PopupManager {
                     let data = result[domain + "_content"] || { generations: [] };
                     data.generations.push(generationData);
                     chrome.storage.local.set({ [domain + "_content"]: data }, () => {
-                        console.log("Content generation data saved:", generationData);
+                        this.addContentGenerationToPopup(domain, generationData);
                     });
                 });
             }
@@ -490,6 +492,162 @@ class PopupManager {
         this.styleGenerations.appendChild(styleGeneration);
     }
 
+    addContentGenerationToPopup(domain, generationData) {
+        this.loadingIndicator.style.display = 'none';
+        const ID_PREFIX = 'AIPE_GENERATION_CONTENT_';
+    
+        if (this.contentGenerations.style.display === 'none') {
+            this.contentGenerations.style.display = 'block';
+        }
+    
+        let existingGeneration = document.getElementById(ID_PREFIX + generationData.id);
+        if (existingGeneration) {
+            existingGeneration.remove();
+        }
+    
+        let contentGeneration = document.createElement('div');
+        contentGeneration.className = 'style-generation status-bar-field';
+        contentGeneration.id = ID_PREFIX + generationData.id;
+        contentGeneration.style.position = 'relative';
+    
+        let topContainer = document.createElement('div');
+        topContainer.style.display = 'flex';
+        topContainer.style.alignItems = 'center';
+    
+        let visibilityCheckbox = document.createElement('input');
+        visibilityCheckbox.type = 'checkbox';
+        const checkboxId = 'vis-checkbox-' + generationData.id;
+        visibilityCheckbox.id = checkboxId;
+        visibilityCheckbox.checked = generationData.visible !== false;
+        visibilityCheckbox.style.marginRight = '5px';
+    
+        visibilityCheckbox.addEventListener('change', () => {
+            chrome.storage.local.get([domain + '_content'], (result) => {
+                let data = result[domain + '_content'];
+                let generations = data.generations;
+                let targetGeneration = generations.find((g) => g.id === generationData.id);
+                if (targetGeneration) {
+                    targetGeneration.visible = visibilityCheckbox.checked;
+                }
+                data.generations = generations;
+                chrome.storage.local.set({ [domain + '_content']: data });
+            });
+        });
+    
+        let label = document.createElement('label');
+        label.htmlFor = checkboxId;
+    
+        let noteDiv = document.createElement('div');
+        noteDiv.innerText = generationData.note;
+        noteDiv.className = 'style-generation-note';
+        label.appendChild(noteDiv);
+    
+        label.addEventListener('click', (event) => {
+            if (noteDiv.isContentEditable) {
+                event.preventDefault();
+            }
+        });
+    
+        topContainer.appendChild(visibilityCheckbox);
+        topContainer.appendChild(label);
+        contentGeneration.appendChild(topContainer);
+    
+        let regenerateButton = document.createElement('button');
+        regenerateButton.innerText = '🦎 Regenerate';
+        regenerateButton.addEventListener('click', async () => {
+            // For now, we are not implementing the functionality
+        });
+    
+        let modifyButton = document.createElement('button');
+        modifyButton.innerText = '✏️ Modify';
+        let applyButton = document.createElement('button');
+        applyButton.innerText = '🖌️ Apply';
+        applyButton.style.display = 'none';
+    
+        modifyButton.addEventListener('click', () => {
+            noteDiv.contentEditable = true;
+            noteDiv.focus();
+            modifyButton.style.display = 'none';
+            applyButton.style.display = 'inline-block';
+        });
+    
+        applyButton.addEventListener('click', async () => {
+            let newNote = noteDiv.innerText;
+            generationData.note = newNote;
+            chrome.storage.local.get([domain + '_content'], (result) => {
+                let data = result[domain + '_content'];
+                let generations = data.generations;
+                let targetGeneration = generations.find((g) => g.id === generationData.id);
+                if (targetGeneration) {
+                    targetGeneration.note = newNote;
+                }
+                data.generations = generations;
+                chrome.storage.local.set({ [domain + '_content']: data });
+            });
+            noteDiv.contentEditable = false;
+            applyButton.style.display = 'none';
+            modifyButton.style.display = 'inline-block';
+        });
+    
+        noteDiv.addEventListener('blur', (event) => {
+            if (event.relatedTarget == applyButton) {
+                return;
+            }
+            event.preventDefault();
+            noteDiv.contentEditable = false;
+            applyButton.style.display = 'none';
+            modifyButton.style.display = 'inline-block';
+            noteDiv.innerText = generationData.note;
+        });
+    
+        let removeButton = document.createElement('button');
+        removeButton.innerText = '🗑️ Remove';
+        removeButton.addEventListener('click', () => {
+            chrome.storage.local.get([domain + '_content'], (result) => {
+                let data = result[domain + '_content'];
+                let generations = data.generations;
+                let newGenerations = generations.filter((generation) => {
+                    return generation.id !== generationData.id;
+                });
+                data.generations = newGenerations;
+                chrome.storage.local.set({ [domain + '_content']: data }, () => {
+                    contentGeneration.remove();
+                });
+            });
+        });
+    
+        let buttonsDiv = document.createElement('div');
+        buttonsDiv.style.display = 'flex';
+        buttonsDiv.style.justifyContent = 'right';
+        buttonsDiv.appendChild(regenerateButton);
+        buttonsDiv.appendChild(modifyButton);
+        buttonsDiv.appendChild(applyButton);
+        buttonsDiv.appendChild(removeButton);
+        contentGeneration.appendChild(buttonsDiv);
+    
+        let randomPastel = Math.floor(Math.random() * 360);
+        let randomPastel2 = (randomPastel + 180) % 360;
+        let randomPastel3 = (randomPastel + 90) % 360;
+        contentGeneration.style.background = `linear-gradient(110deg, hsl(${randomPastel}, 100%, 80%), hsl(${randomPastel2}, 100%, 80%), hsl(${randomPastel3}, 100%, 80%), hsl(0, 0%, 80%))`;
+    
+        this.contentGenerations.appendChild(contentGeneration);
+    }
+    
+    async loadContentGenerations() {
+        const tabs = await this.getActiveTabs();
+        const url = new URL(tabs[0].url);
+        const domain = url.hostname;
+        this.contentGenerations.innerHTML = '';
+        chrome.storage.local.get([domain + '_content'], (result) => {
+            let data = result[domain + '_content'];
+            if (data && data.generations) {
+                data.generations.forEach((generation) => {
+                    this.addContentGenerationToPopup(domain, generation);
+                });
+            }
+        });
+    }
+
     getActiveTabs() {
         return new Promise((resolve) => {
             chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -623,5 +781,12 @@ document.addEventListener("DOMContentLoaded", function () {
 window.addEventListener("beforeunload", function () {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         chrome.tabs.sendMessage(tabs[0].id, { action: "runExitElementSelectionMode" });
+    });
+});
+
+// if the user clicks on the content generation add element link, send a message to the content script to add an element to the context
+document.getElementById("contentGenerationAddElementLink").addEventListener("click", function () {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        chrome.tabs.sendMessage(tabs[0].id, { action: "runAddElementToContext" });
     });
 });
