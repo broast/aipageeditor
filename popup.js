@@ -6,7 +6,7 @@ class PopupManager {
 
         this.contentNotesField = document.getElementById("contentGenerationNote");
         this.contentSaveButton = document.getElementById("saveContent");
-        this.contentClearButton = document.getElementById("clearContent");
+        
         this.contentLoadingIndicator = document.getElementById("contentLoadingIndicator");
 
         this.globalStyleCheckbox = document.getElementById("global-style-checkbox");
@@ -76,8 +76,9 @@ class PopupManager {
 
     initEventListeners() {
         this.stylesSaveButton.addEventListener("click", () => this.saveNote());
-        this.contentSaveButton.addEventListener("click", () => this.saveContent());
         this.stylesClearButton.addEventListener("click", () => this.clearAll());
+        this.contentSaveButton.addEventListener("click", () => this.saveContent());
+        
         this.addElementToContextButton.addEventListener("click", () => this.addElementToContext());
         this.resetContextButton.addEventListener("click", () => this.resetContext());
         this.includeDefaultContext.addEventListener("change", () => {
@@ -191,7 +192,7 @@ class PopupManager {
         const settings = this.getSettingsFromInputs();
 
         chrome.tabs.sendMessage(tabs[0].id, {
-            action: "runProcessContentGeneration",
+            action: "runScanAndProcessElements",
             note: note,
             apiKey: settings.apiKey,
             modelEndpoint: settings.modelEndpoint,
@@ -556,7 +557,7 @@ class PopupManager {
             const tabs = await this.getActiveTabs();
             const settings = this.getSettingsFromInputs();
             chrome.tabs.sendMessage(tabs[0].id, {
-                action: 'runProcessContentGeneration',
+                action: 'runScanAndProcessElements',
                 note: generationData.note,
                 id: generationData.id,
                 visible: generationData.visible,
@@ -810,9 +811,4 @@ window.addEventListener("beforeunload", function () {
     });
 });
 
-// if the user clicks on the content generation add element link, send a message to the content script to add an element to the context
-document.getElementById("contentGenerationAddElementLink").addEventListener("click", function () {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        chrome.tabs.sendMessage(tabs[0].id, { action: "runAddElementToContext" });
-    });
-});
+

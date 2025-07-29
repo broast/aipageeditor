@@ -1,5 +1,3 @@
-
-
 class Storage {
     static get(key) {
         return new Promise((resolve) => {
@@ -332,6 +330,12 @@ class PageModifier {
         if (toast && toast.parentNode) {
             toast.classList.remove('show');
             setTimeout(() => toast.remove(), 300);
+        }
+    }
+
+    updateToast(toast, message) {
+        if (toast) {
+            toast.textContent = "🪄 " + message;
         }
     }
 
@@ -753,15 +757,93 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
         pageModifier.selectedElements.clear();
         pageModifier.disableElementSelectionMode();
         sendResponse({ success: true });
-    } else if (message.action === 'runProcessContentGeneration') {
+    } else if (message.action === 'runScanAndProcessElements') {
         const { note, id, visible, apiKey, modelEndpoint, modelName, selectedElements } = message;
         const settings = { apiKey, modelEndpoint, modelName };
         const generation = { note, id, visible, selectedElements };
-        await runGeneration(generation, settings);
+        await scanAndProcessElements(generation, settings);
     }
 });
 
-async function runGeneration(generation, settings) {
+const elementQueue = [];
+let activeRequests = 0;
+let totalQueued = 0;
+let totalProcessed = 0;
+const MAX_CONCURRENT_REQUESTS = 10;
+let persistentToast = null;
+
+function updateToast() {
+    if (elementQueue.length === 0 && activeRequests === 0) {
+        if (persistentToast) {
+            pageModifier.removeToast(persistentToast);
+            persistentToast = null;
+        }
+        if (totalProcessed > 0) {
+            pageModifier.showToast(`Content generation complete. Processed ${totalProcessed} elements.`);
+            totalQueued = 0;
+            totalProcessed = 0;
+        }
+        chrome.runtime.sendMessage({ action: "hideContentSpinner" });
+        return;
+    }
+
+    const message = `Processing element ${totalProcessed + 1} of ${totalQueued}...`;
+    if (persistentToast) {
+        pageModifier.updateToast(persistentToast, message);
+    } else {
+        persistentToast = pageModifier.showAndReturnPersistentToast(message);
+    }
+}
+
+async function _processElement(element, generation, openAI) {
+    try {
+        const { html } = await openAI.generateContent(generation.note, element.outerHTML, generation.selectedElements);
+        const modifiedHtml = html.replace(/<([a-zA-Z0-9\-]+)/, '<$1 data-vk-processed="true"');
+        element.outerHTML = modifiedHtml;
+    } catch (e) {
+        console.error("Error generating content:", e);
+        if (e.response && e.response.status === 401) {
+            pageModifier.showToast("API key is invalid or missing.", 5000);
+        } else if (e.message.includes("Failed to fetch")) {
+            pageModifier.showToast("Failed to connect to the model endpoint.", 5000);
+        } else {
+            pageModifier.showToast(`Error processing element.`);
+        }
+    } finally {
+        totalProcessed++;
+        updateToast();
+    }
+}
+
+function processQueue() {
+    while (activeRequests < MAX_CONCURRENT_REQUESTS && elementQueue.length > 0) {
+        activeRequests++;
+        const { element, generation, openAI } = elementQueue.shift();
+
+        _processElement(element, generation, openAI).finally(() => {
+            activeRequests--;
+            processQueue();
+        });
+    }
+
+    if (elementQueue.length === 0 && activeRequests === 0) {
+        updateToast();
+    }
+}
+
+function enqueueElement(element, generation, openAI) {
+    if (element.closest('[data-vk-processed="true"]')) {
+        return;
+    }
+    element.setAttribute('data-vk-processed', 'true');
+
+    elementQueue.push({ element, generation, openAI });
+    totalQueued++;
+    updateToast();
+    processQueue();
+}
+
+async function scanAndProcessElements(generation, settings) {
     if (!settings.modelEndpoint) {
         pageModifier.showToast("Model endpoint is missing. Please configure it in settings.", 5000);
         chrome.runtime.sendMessage({ action: "hideContentSpinner" });
@@ -769,75 +851,56 @@ async function runGeneration(generation, settings) {
     }
 
     const openAI = new OpenAI(settings.apiKey, settings.modelEndpoint, settings.modelName);
-    
-    let selectors;
-    if (generation.selectors) {
-        selectors = generation.selectors;
-    } else {
+
+    if (!generation.selectors) {
         const { selector } = await openAI.generateSelector(generation.note, document.body.outerHTML, generation.selectedElements);
-        selectors = [selector];
-        generation.selectors = selectors;
+        generation.selectors = [selector];
         let url = new URL(window.location.href);
         let domain = url.hostname;
         await Storage.addContentGeneration(domain, generation);
     }
 
-    const elements = document.querySelectorAll(selectors.join(","));
-    let totalElements = elements.length;
-
-    if (totalElements === 0) {
-        chrome.runtime.sendMessage({ action: "hideContentSpinner" });
-        return;
-    }
-
-    let processedElements = 0;
-    pageModifier.showToast(`Found ${totalElements} elements to process...`);
-    
-    for (const element of elements) {
-        let persistentToast;
-        try {
-            processedElements++;
-            persistentToast = pageModifier.showAndReturnPersistentToast(`Processing element ${processedElements} of ${totalElements}...`);
-            const { html } = await openAI.generateContent(generation.note, element.outerHTML, generation.selectedElements);
-            element.outerHTML = html;
-            pageModifier.removeToast(persistentToast);
-        } catch (e) {
-            console.error("Error generating content:", e);
-            if(persistentToast) pageModifier.removeToast(persistentToast);
-
-            if (e.response && e.response.status === 401) {
-                pageModifier.showToast("API key is invalid or missing.", 5000);
-            } else if (e.message.includes("Failed to fetch")) {
-                pageModifier.showToast("Failed to connect to the model endpoint.", 5000);
-            } else {
-                pageModifier.showToast(`Error processing element ${processedElements} of ${totalElements}.`);
+    const observer = new MutationObserver(mutations => {
+        for (const mutation of mutations) {
+            for (const node of mutation.addedNodes) {
+                if (node.nodeType === Node.ELEMENT_NODE) {
+                    generation.selectors.forEach(selector => {
+                        if (node.matches(selector)) {
+                            enqueueElement(node, generation, openAI);
+                        }
+                        node.querySelectorAll(selector).forEach(element => {
+                            enqueueElement(element, generation, openAI);
+                        });
+                    });
+                }
             }
-            // On any error, stop and hide spinner.
-            chrome.runtime.sendMessage({ action: "hideContentSpinner" });
-            return;
         }
-    }
+    });
 
-    if (totalElements > 0) {
-        pageModifier.showToast(`Content generation complete. Processed ${processedElements} elements.`);
-    }
-    chrome.runtime.sendMessage({ action: "hideContentSpinner" });
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    // Initial scan
+    generation.selectors.forEach(selector => {
+        document.querySelectorAll(selector).forEach(element => {
+            enqueueElement(element, generation, openAI);
+        });
+    });
 }
 
-async function processContentGeneration() {
+async function initializeContentGeneration() {
     let url = new URL(window.location.href);
     let domain = url.hostname;
     let { aipe_settings } = await chrome.storage.local.get("aipe_settings");
     const settings = aipe_settings || {};
     let domainData = await Storage.get(domain + "_content");
-    
+
     if (domainData && domainData.generations) {
         for (const generation of domainData.generations) {
-            if(generation.visible === false) continue;
-            await runGeneration(generation, settings);
+            if (generation.visible === false) continue;
+            await scanAndProcessElements(generation, settings);
         }
     }
 }
 
 pageModifier.clearAndReApplyAllGenerations();
-processContentGeneration();
+initializeContentGeneration();
