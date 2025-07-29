@@ -7,10 +7,12 @@ class PopupManager {
         this.contentNotesField = document.getElementById("contentGenerationNote");
         this.contentSaveButton = document.getElementById("saveContent");
         this.contentClearButton = document.getElementById("clearContent");
+        this.contentLoadingIndicator = document.getElementById("contentLoadingIndicator");
 
         this.globalStyleCheckbox = document.getElementById("global-style-checkbox");
         this.loadingIndicator = document.getElementById("loadingIndicator");
-        this.spinner = new HourglassSpinner();
+        this.spinner = new HourglassSpinner("hourglass-emoji");
+        this.contentSpinner = new HourglassSpinner("content-hourglass-emoji");
 
         this.addElementToContextButton = document.getElementById("addElementToContext");
         this.resetContextButton = document.getElementById("resetContext");
@@ -28,6 +30,7 @@ class PopupManager {
         this.contentGenerations = document.getElementById("content-generations");
 
         this.spinner.animateHourglass();
+        this.contentSpinner.animateHourglass();
         this.initEventListeners();
         this.initTabs();
         this.loadGenerations();
@@ -126,6 +129,9 @@ class PopupManager {
             } else if (message.action === "hideSpinner") {
                 this.loadingIndicator.style.display = "none";
             }
+            else if (message.action === "hideContentSpinner") {
+                this.contentLoadingIndicator.style.display = "none";
+            }
         });
 
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -180,27 +186,16 @@ class PopupManager {
             return;
         }
 
+        this.contentLoadingIndicator.style.display = "block";
         const tabs = await this.getActiveTabs();
-        const url = new URL(tabs[0].url);
-        const domain = url.hostname;
+        const settings = this.getSettingsFromInputs();
 
-        chrome.tabs.sendMessage(tabs[0].id, { action: "runGetElementsInContext" }, (response) => {
-            if (response && response.selectors) {
-                const generationData = {
-                    id: "content-" + Date.now(),
-                    note: note,
-                    selectors: response.selectors,
-                    visible: true
-                };
-
-                chrome.storage.local.get([domain + "_content"], (result) => {
-                    let data = result[domain + "_content"] || { generations: [] };
-                    data.generations.push(generationData);
-                    chrome.storage.local.set({ [domain + "_content"]: data }, () => {
-                        this.addContentGenerationToPopup(domain, generationData);
-                    });
-                });
-            }
+        chrome.tabs.sendMessage(tabs[0].id, {
+            action: "runProcessContentGeneration",
+            note: note,
+            apiKey: settings.apiKey,
+            modelEndpoint: settings.modelEndpoint,
+            modelName: settings.modelName,
         });
     }
 
@@ -495,7 +490,7 @@ class PopupManager {
     }
 
     addContentGenerationToPopup(domain, generationData) {
-        this.loadingIndicator.style.display = 'none';
+        this.contentLoadingIndicator.style.display = 'none';
         const ID_PREFIX = 'AIPE_GENERATION_CONTENT_';
     
         if (this.contentGenerations.style.display === 'none') {
@@ -557,7 +552,7 @@ class PopupManager {
         let regenerateButton = document.createElement('button');
         regenerateButton.innerText = '🦎 Regenerate';
         regenerateButton.addEventListener('click', async () => {
-            this.loadingIndicator.style.display = 'block';
+            this.contentLoadingIndicator.style.display = 'block';
             const tabs = await this.getActiveTabs();
             const settings = this.getSettingsFromInputs();
             chrome.tabs.sendMessage(tabs[0].id, {
@@ -763,8 +758,8 @@ class HourglassSpinner {
     rotationDuration; // Duration for the 180-degree rotation
 
     // constructor
-    constructor() {
-        this.hourglassElement = document.getElementById('hourglass-emoji');
+    constructor(elementId) {
+        this.hourglassElement = document.getElementById(elementId);
 
         this.emptyingDuration = 1500;
         this.pauseAfterEmptyingDuration = 500;

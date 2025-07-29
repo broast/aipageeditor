@@ -199,6 +199,57 @@ class OpenAI {
         }
         return { css: responseData, requestBody: requestInfo.body };
     }
+
+    async generateSelector(note, outerHtml, selectedElements) {
+        const selectedElementsPrompt = selectedElements ? `The user has selected the following elements html to include in the context: ${selectedElements}` : "";
+
+        const userContent = [
+            {
+                type: "text",
+                text: `These are the users notes for this website: ${note}\n\n${selectedElementsPrompt}\nHere is the outer html of the element to be rewritten: ${outerHtml}\n\nAs a reminder, the users notes are: ${note}. Please return a querySelectorAll compatible selector that will select the elements to be changed. do not confuse the words in the users notes for class names or tags, the user does not know about those and can not see those!!! The user only provides visual changes to the user experience. \n\nNote: Please Do Not change anything the user does not ask you to change.... you will be rewarded as always for high quality work only. Thank you!!! (You have currently earned 7,830 rewards and are on a 23 day streak) `
+            }
+        ];
+
+        const headers = {
+            "Content-Type": "application/json",
+        };
+        if (this.apiKey) {
+            headers["Authorization"] = `Bearer ${this.apiKey}`;
+        }
+
+        const requestInfo = {
+            method: "POST",
+            headers: headers,
+            body: JSON.stringify({
+                model: this.modelName,
+                messages: [
+                    {
+                        role: "system", content: `You are a html css selector bot. You use the notes provided by the user to help determine what elements to select on the page which we may need to modify based on the instructions in those notes.\nYou will be given the outer html of the page and some relevant elements. Please return a css selector which will help identify the elements that need to be modified per the users instructions. Only respond with the selector, as your responses are being processed by a machine.\nThe browser is Chrome, so you can use any selector that works in Chrome. Please don't rely on unique id's that may change, as your selector will be queried on every page load under this domain.`
+                    },
+                    {
+                        role: "user", content: userContent
+                    },
+
+                ]
+            })
+        };
+
+        const response = await fetch(this.modelEndpoint, requestInfo);
+        if (!response.ok) {
+            const error = new Error(`HTTP error! status: ${response.status}`);
+            error.response = response;
+            throw error;
+        }
+        let responseData = await response.json();
+
+        if (responseData.choices[0].message.content.startsWith("```css\n")) {
+            responseData = responseData.choices[0].message.content.replace("```css\n", "");
+            responseData = responseData.replace("```", "");
+        } else {
+            responseData = responseData.choices[0].message.content;
+        }
+        return { selector: responseData, requestBody: requestInfo.body };
+    }
 }
 
 class PageModifier {
@@ -453,42 +504,6 @@ class PageModifier {
         return [...this.selectedElements];
     }
 
-    /**
-     * Generates a generic CSS selector for a given HTML element.
-     * This function prioritizes the element's tag name and class names,
-     * explicitly avoiding the 'id' attribute to create a selector that
-     * can find similar elements rather than an exact, unique element.
-     *
-     * @param {HTMLElement} element The HTML element for which to generate the selector.
-     * @returns {string} A generic CSS selector string (e.g., 'div.some-class.another-class', 'button').
-     * Returns an empty string if the element is null or undefined.
-     */
-    getSelector(element) {
-        // Return an empty string if the element is not valid
-        if (!element || !(element instanceof HTMLElement)) {
-            console.warn("Invalid element provided to getSelectors function.");
-            return '';
-        }
-
-        // Start with the tag name (e.g., 'div', 'button', 'p')
-        let selector = element.tagName.toLowerCase();
-
-        // Add class names if they exist
-        // element.classList returns a DOMTokenList, which can be easily joined
-        if (element.classList.length > 0) {
-            // Prepend each class with a dot ('.') and join them
-            selector += '.' + Array.from(element.classList).join('.');
-        }
-
-        // You could extend this to include other generic attributes if needed,
-        // but for "similar elements" and avoiding 'id', tag + class is usually sufficient.
-        // Example for data-attributes (uncomment if desired):
-        // if (element.hasAttribute('data-type')) {
-        //     selector += `[data-type="${element.getAttribute('data-type')}"]`;
-        // }
-
-        return selector;
-    }
     getCleanHTMLStructureWithStyles() {
         function getCompressedStyles(el) {
             const computed = getComputedStyle(el);
@@ -711,6 +726,7 @@ async function processUserNote(note, existingId = null, apiKey, modelEndpoint, m
         }
     } finally {
         chrome.runtime.sendMessage({ action: "hideSpinner" });
+        chrome.runtime.sendMessage({ action: "hideContentSpinner" });
     }
 }
 
@@ -732,16 +748,15 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
         pageModifier.disableElementSelectionMode();
     } else if (message.action === "runGetElementsInContext") {
         const elements = pageModifier.getElementsForContext();
-        const selectors = elements.map(el => pageModifier.getSelector(el));
-        sendResponse({ count: elements.length, selectors: selectors });
+        sendResponse({ count: elements.length });
     } else if (message.action === "runResetContext") {
         pageModifier.selectedElements.clear();
         pageModifier.disableElementSelectionMode();
         sendResponse({ success: true });
     } else if (message.action === 'runProcessContentGeneration') {
-        const { note, id, visible, apiKey, modelEndpoint, modelName, selectors, selectedElements } = message;
+        const { note, id, visible, apiKey, modelEndpoint, modelName, selectedElements } = message;
         const settings = { apiKey, modelEndpoint, modelName };
-        const generation = { note, id, visible, selectors, selectedElements };
+        const generation = { note, id, visible, selectedElements };
         await runGeneration(generation, settings);
     }
 });
@@ -749,16 +764,29 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
 async function runGeneration(generation, settings) {
     if (!settings.modelEndpoint) {
         pageModifier.showToast("Model endpoint is missing. Please configure it in settings.", 5000);
-        chrome.runtime.sendMessage({ action: "hideSpinner" });
+        chrome.runtime.sendMessage({ action: "hideContentSpinner" });
         return;
     }
 
     const openAI = new OpenAI(settings.apiKey, settings.modelEndpoint, settings.modelName);
-    const elements = document.querySelectorAll(generation.selectors.join(","));
+    
+    let selectors;
+    if (generation.selectors) {
+        selectors = generation.selectors;
+    } else {
+        const { selector } = await openAI.generateSelector(generation.note, document.body.outerHTML, generation.selectedElements);
+        selectors = [selector];
+        generation.selectors = selectors;
+        let url = new URL(window.location.href);
+        let domain = url.hostname;
+        await Storage.addContentGeneration(domain, generation);
+    }
+
+    const elements = document.querySelectorAll(selectors.join(","));
     let totalElements = elements.length;
 
     if (totalElements === 0) {
-        chrome.runtime.sendMessage({ action: "hideSpinner" });
+        chrome.runtime.sendMessage({ action: "hideContentSpinner" });
         return;
     }
 
@@ -785,7 +813,7 @@ async function runGeneration(generation, settings) {
                 pageModifier.showToast(`Error processing element ${processedElements} of ${totalElements}.`);
             }
             // On any error, stop and hide spinner.
-            chrome.runtime.sendMessage({ action: "hideSpinner" });
+            chrome.runtime.sendMessage({ action: "hideContentSpinner" });
             return;
         }
     }
@@ -793,7 +821,7 @@ async function runGeneration(generation, settings) {
     if (totalElements > 0) {
         pageModifier.showToast(`Content generation complete. Processed ${processedElements} elements.`);
     }
-    chrome.runtime.sendMessage({ action: "hideSpinner" });
+    chrome.runtime.sendMessage({ action: "hideContentSpinner" });
 }
 
 async function processContentGeneration() {
