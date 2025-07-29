@@ -123,15 +123,19 @@ class PopupManager {
             }
         });
 
-        chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+        chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
             if (message.action === "updatePopup") {
                 this.styleGenerations.innerHTML = "";
                 this.loadGenerations();
             } else if (message.action === "hideSpinner") {
                 this.loadingIndicator.style.display = "none";
-            }
-            else if (message.action === "hideContentSpinner") {
+            } else if (message.action === "hideContentSpinner") {
                 this.contentLoadingIndicator.style.display = "none";
+            } else if (message.action === "contentGenerationAdded") {
+                const tabs = await this.getActiveTabs();
+                const url = new URL(tabs[0].url);
+                const domain = url.hostname;
+                this.addContentGenerationToPopup(domain, message.generation);
             }
         });
 

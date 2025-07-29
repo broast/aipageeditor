@@ -858,6 +858,7 @@ async function scanAndProcessElements(generation, settings) {
         let url = new URL(window.location.href);
         let domain = url.hostname;
         await Storage.addContentGeneration(domain, generation);
+        chrome.runtime.sendMessage({ action: "contentGenerationAdded", generation: generation });
     }
 
     const observer = new MutationObserver(mutations => {
