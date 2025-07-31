@@ -1,245 +1,307 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-
-<head>
+  <head>
     <title>Domain Notes</title>
     <script src="popup.js" defer></script>
-    <meta charset='UTF-8' />
+    <meta charset="UTF-8" />
     <link rel="stylesheet" href="https://unpkg.com/98.css" />
     <style>
-        #loadingIndicator {
-            display: none;
+      #loadingIndicator {
+        display: none;
+      }
+
+      .style-generation {
+        padding: 5px;
+        border: 1px solid #ccc;
+      }
+
+      .style-generation * {
+        padding: 5px;
+      }
+
+      body > * {
+        font-family: Arial, sans-serif !important;
+        font-weight: bold !important;
+      }
+
+      button,
+      .style-generation-note,
+      #contentGenerationNote,
+      #notes {
+        font-size: 14px !important;
+        font-weight: bold !important;
+      }
+
+      .style-generation-copy-button {
+        font-size: 13px !important;
+        font-weight: bold !important;
+        margin-left: 10px;
+      }
+
+      .style-generation-note {
+        padding: 0px;
+      }
+
+      #contextControl div.context-count {
+        border: 1px solid black;
+        background: #dfdd9a;
+        margin-bottom: 10px;
+        padding: 5px;
+        font-size: 12px !important;
+        font-weight: normal;
+      }
+
+      #advanced-options {
+        margin-top: 5px !important;
+      }
+
+      #advanced-options-toggle {
+        cursor: pointer;
+        user-select: none;
+      }
+
+      #advanced-options-content {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.07s ease-out;
+      }
+
+      .style-generation-note {
+        width: 300px;
+      }
+
+      #generation-tabs-list li[role="tab"] {
+        width: 100px;
+        font-size: 14px;
+        text-align: center;
+        margin-left: 1px;
+        /* vertical gradient from white to transparent */
+        background: linear-gradient(to bottom, #a0aab5, rgb(192, 192, 192));
+      }
+
+      #generation-tabs-list li[role="tab"][aria-selected="true"] {
+        background: linear-gradient(
+          to bottom,
+          rgb(222, 222, 222),
+          rgb(192, 192, 192)
+        );
+      }
+
+      #generation-tabs-list li[role="tab"] a {
+        color: black;
+        text-shadow: 1px 1px 2px rgba(255, 255, 255, 1);
+      }
+
+      .generation-tab-panel .window-body {
+        padding: 0px !important;
+        margin: 0px !important;
+      }
+
+      .hourglass-container {
+        font-size: 30px;
+        width: 20px;
+        /* Fixed width for consistent centering */
+        height: 20px;
+        /* Fixed height for consistent centering */
+        /* Removed perspective as it's not needed for 2D rotation */
+        position: relative;
+        display: inline-block;
+        /* Allows centering within its container */
+        position: absolute;
+        /* Positioning for rotation */
+        right: 20px;
+        /* Align to the right of the container */
+        top: 7px;
+        /* Align to the top of the container */
+      }
+
+      .hourglass-emoji {
+        /* Transition for smooth rotation, though keyframes will override during animation */
+        transition: transform 0.8s ease-in-out;
+        /* Ensure the emoji is centered within its container */
+        line-height: 1;
+        text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.5);
+        display: inline-block;
+        /* Allows the emoji to be treated as a block for rotation */
+      }
+
+      /* Keyframe animation for 180-degree rotation around the Z-axis (2D flip effect) */
+      @keyframes rotate180 {
+        from {
+          transform: rotate(0deg);
         }
 
-        .style-generation {
-            padding: 5px;
-            border: 1px solid #ccc;
+        /* Start at 0 degrees */
+        to {
+          transform: rotate(180deg);
         }
 
-        .style-generation * {
-            padding: 5px;
-        }
+        /* Rotate to 180 degrees */
+      }
 
-        body > *
-        {
-            font-family: Arial, sans-serif, !important;
-            font-weight: bold !important;
-        }
-
-        button,
-        .style-generation-note, #contentGenerationNote,
-        #notes {
-            font-size: 14px !important;
-            font-weight: bold !important;
-        }
-
-        .style-generation-copy-button {
-            font-size: 13px !important;
-            font-weight: bold !important;
-            margin-left: 10px;
-        }
-
-        .style-generation-note {
-            padding: 0px;
-        }
-
-        #contextControl div.context-count {
-            border: 1px solid black;
-            background: #dfdd9a;
-            margin-bottom: 10px;
-            padding: 5px;
-            font-size: 12px !important;
-            font-weight: normal;
-        }
-
-        #advanced-options {
-            margin-top: 5px !important;
-        }
-
-        #advanced-options-toggle {
-            cursor: pointer;
-            user-select: none;
-        }
-
-        #advanced-options-content {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.07s ease-out;
-        }
-
-        .style-generation-note {
-            width: 300px;
-        }
-
-        #generation-tabs-list li[role="tab"] {
-            width: 100px;
-            font-size: 14px;
-            text-align: center;
-            margin-left: 1px;
-            /* vertical gradient from white to transparent */
-            background: linear-gradient(to bottom, #a0aab5, rgb(192, 192, 192));
-        }
-
-        #generation-tabs-list li[role="tab"][aria-selected="true"] {
-            background: linear-gradient(to bottom, rgb(222, 222, 222), rgb(192, 192, 192));
-        }
-
-        #generation-tabs-list li[role="tab"] a {
-            color: black;
-            text-shadow: 1px 1px 2px rgba(255, 255, 255, 1);
-        }
-
-        .generation-tab-panel .window-body {
-            padding: 0px !important;
-            margin: 0px !important;
-        }
-
-        .hourglass-container {
-            font-size: 30px;
-            width: 20px;
-            /* Fixed width for consistent centering */
-            height: 20px;
-            /* Fixed height for consistent centering */
-            /* Removed perspective as it's not needed for 2D rotation */
-            position: relative;
-            display: inline-block;
-            /* Allows centering within its container */
-            position: absolute;
-            /* Positioning for rotation */
-            right: 20px;
-            /* Align to the right of the container */
-            top: 7px;
-            /* Align to the top of the container */
-        }
-
-        .hourglass-emoji {
-            /* Transition for smooth rotation, though keyframes will override during animation */
-            transition: transform 0.8s ease-in-out;
-            /* Ensure the emoji is centered within its container */
-            line-height: 1;
-            text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.5);
-            display: inline-block;
-            /* Allows the emoji to be treated as a block for rotation */
-        }
-
-        /* Keyframe animation for 180-degree rotation around the Z-axis (2D flip effect) */
-        @keyframes rotate180 {
-            from {
-                transform: rotate(0deg);
-            }
-
-            /* Start at 0 degrees */
-            to {
-                transform: rotate(180deg);
-            }
-
-            /* Rotate to 180 degrees */
-        }
-
-        /* Class to apply the rotation animation */
-        .rotating {
-            animation: rotate180 0.8s forwards;
-            /* 0.8s duration, 'forwards' keeps the end state */
-        }
+      /* Class to apply the rotation animation */
+      .rotating {
+        animation: rotate180 0.8s forwards;
+        /* 0.8s duration, 'forwards' keeps the end state */
+      }
     </style>
-</head>
+  </head>
 
-<body style="width: 425px; margin: 2px; padding: 2px" class="window">
-
+  <body style="width: 425px; margin: 2px; padding: 2px" class="window">
     <div class="title-bar">
-        <div class="title-bar-text">🎨 AI Page Style Editor</div>
-        </h3>
+      <div class="title-bar-text">🎨 AI Page Style Editor</div>
     </div>
 
-    <menu role="tablist" id="generation-tabs-list" style="margin-top: 10px;">
-        <li role="tab" aria-selected="true"><a href="#styles-tab">🎨 Styles</a></li>
-        <li role="tab"><a href="#content-tab">📄 Content</a></li>
+    <menu role="tablist" id="generation-tabs-list" style="margin-top: 10px">
+      <li role="tab" aria-selected="true">
+        <a href="#styles-tab">🎨 Styles</a>
+      </li>
+      <li role="tab"><a href="#content-tab">📄 Content</a></li>
     </menu>
     <div class="window generation-tab-panel" role="tabpanel" id="styles-tab">
-        <div class="window-body">
-            <!-- The area where we display committed style generations that can be regenerated, modified and applied, or removed -->
-            <div id="style-generations" style="display: none;">
-            </div>
+      <div class="window-body">
+        <!-- The area where we display committed style generations that can be regenerated, modified and applied, or removed -->
+        <div id="style-generations" style="display: none"></div>
 
-            <textarea id="notes" placeholder="Enter changes here..."
-                style="width: 100%; height: 100px; padding: 10px; box-sizing: border-box;"></textarea><br />
-            <div style="text-align:right; padding: 5px;">
-                <input type="checkbox" id="global-style-checkbox" style="margin-left: 10px;" />
-                <label for="global-style-checkbox">Apply to all websites, not just this domain.</label>
-            </div>
-            <fieldset style="margin: 5px; position: relative;">
-                <button id="save" style="padding: 5px;">🖌️ Generate &amp; Apply</button>
-                <button id="clear" style="padding: 5px;">🗑️ Reset Styles</button>
-                <div id="loadingIndicator" class="hourglass-container">
-                    <span id="hourglass-emoji" class="hourglass-emoji rotating">⏳</span>
-                </div>
-            </fieldset>
+        <textarea
+          id="notes"
+          placeholder="Enter changes here..."
+          style="
+            width: 100%;
+            height: 100px;
+            padding: 10px;
+            box-sizing: border-box;
+          "
+        ></textarea
+        ><br />
+        <div style="text-align: right; padding: 5px">
+          <input
+            type="checkbox"
+            id="global-style-checkbox"
+            style="margin-left: 10px"
+          />
+          <label for="global-style-checkbox"
+            >Apply to all websites, not just this domain.</label
+          >
         </div>
+        <fieldset style="margin: 5px; position: relative">
+          <button id="save" style="padding: 5px">
+            🖌️ Generate &amp; Apply
+          </button>
+          <button id="clear" style="padding: 5px">🗑️ Reset Styles</button>
+          <div id="loadingIndicator" class="hourglass-container">
+            <span id="hourglass-emoji" class="hourglass-emoji rotating"
+              >⏳</span
+            >
+          </div>
+        </fieldset>
+      </div>
     </div>
     <div class="window generation-tab-panel" role="tabpanel" id="content-tab">
-        <div class="window-body">
-            <div id="content-generations" style="display: none;">
-            </div>
-            <textarea id="contentGenerationNote" placeholder="Enter changes here..."
-                style="width: 100%; height: 100px; padding: 10px; box-sizing: border-box;"></textarea><br />
-            
-            <fieldset style="margin: 5px; position: relative;">
-                <button id="saveContent" style="padding: 5px;">✏️ Apply Changes</button>
-                <div id="contentLoadingIndicator" class="hourglass-container" style="display: none;">
-                    <span id="content-hourglass-emoji" class="hourglass-emoji rotating">⏳</span>
-                </div>
-            </fieldset>
-        </div>
+      <div class="window-body">
+        <div id="content-generations" style="display: none"></div>
+        <textarea
+          id="contentGenerationNote"
+          placeholder="Enter changes here..."
+          style="
+            width: 100%;
+            height: 100px;
+            padding: 10px;
+            box-sizing: border-box;
+          "
+        ></textarea
+        ><br />
+
+        <fieldset style="margin: 5px; position: relative">
+          <button id="saveContent" style="padding: 5px">
+            ✏️ Apply Changes
+          </button>
+          <div
+            id="contentLoadingIndicator"
+            class="hourglass-container"
+            style="display: none"
+          >
+            <span id="content-hourglass-emoji" class="hourglass-emoji rotating"
+              >⏳</span
+            >
+          </div>
+        </fieldset>
+      </div>
     </div>
 
-    <fieldset style="margin: 0px; padding: 0px; border-left: none; border-right: none; border-bottom:none;"
-        id="advanced-options">
-        <legend id="advanced-options-toggle">▶ Advanced options</legend>
-        <div id="advanced-options-content">
-            <menu role="tablist" style="margin-top: 10px;">
-                <li role="tab" aria-selected="true"><a href="#context-tab">Context</a></li>
-                <li role="tab"><a href="#model-tab">Model Configuration</a></li>
-            </menu>
-            <div class="window" role="tabpanel" id="context-tab">
-                <div class="window-body">
-                    <div id="contextControl">
-                        <input type="checkbox" id="includeDefaultContext" checked>
-                        <label for="includeDefaultContext">Include default context (<span
-                                title="Default context includes a partial representation of the HTML structure, including some style information, and previews of content strings">❓</span>)</label>
-                        <br>
-                        <input type="checkbox" id="sendScreenshot">
-                        <label for="sendScreenshot">Send Screenshot</label>
-                        <br>
-                        <input type="checkbox" id="includeChangeHistory">
-                        <label for="includeChangeHistory">Include change history</label>
-                        <div style="margin-left: 20px;">
-                            <input type="checkbox" id="includeGlobalChangeHistory">
-                            <label for="includeGlobalChangeHistory">Include global change history</label>
-                        </div>
-                        <div style="margin-top: 10px" class="context-count">Elements in context: Default </div>
-                        <button id="addElementToContext" style="padding: 5px;">➕ Add Elements To Context</button>
-                        <button id="resetContext" style="padding: 5px;">✖️ Reset Context</button>
-                    </div>
-                </div>
+    <fieldset
+      style="
+        margin: 0px;
+        padding: 0px;
+        border-left: none;
+        border-right: none;
+        border-bottom: none;
+      "
+      id="advanced-options"
+    >
+      <legend id="advanced-options-toggle">▶ Advanced options</legend>
+      <div id="advanced-options-content">
+        <menu role="tablist" style="margin-top: 10px">
+          <li role="tab" aria-selected="true">
+            <a href="#context-tab">Context</a>
+          </li>
+          <li role="tab"><a href="#model-tab">Model Configuration</a></li>
+        </menu>
+        <div class="window" role="tabpanel" id="context-tab">
+          <div class="window-body">
+            <div id="contextControl">
+              <input type="checkbox" id="includeDefaultContext" checked />
+              <label for="includeDefaultContext"
+                >Include default context (<span
+                  title="Default context includes a partial representation of the HTML structure, including some style information, and previews of content strings"
+                  >❓</span
+                >)</label
+              >
+              <br />
+              <input type="checkbox" id="sendScreenshot" />
+              <label for="sendScreenshot">Send Screenshot</label>
+              <br />
+              <input type="checkbox" id="includeChangeHistory" />
+              <label for="includeChangeHistory">Include change history</label>
+              <div style="margin-left: 20px">
+                <input type="checkbox" id="includeGlobalChangeHistory" />
+                <label for="includeGlobalChangeHistory"
+                  >Include global change history</label
+                >
+              </div>
+              <div style="margin-top: 10px" class="context-count">
+                Elements in context: Default
+              </div>
+              <button id="addElementToContext" style="padding: 5px">
+                ➕ Add Elements To Context
+              </button>
+              <button id="resetContext" style="padding: 5px">
+                ✖️ Reset Context
+              </button>
             </div>
-            <div class="window" role="tabpanel" id="model-tab">
-                <div class="window-body">
-                    <div class="field-row-stacked">
-                        <label for="apiKey">API Key</label>
-                        <input id="apiKey" type="password" />
-                    </div>
-                    <div class="field-row-stacked">
-                        <label for="modelEndpoint">Model Endpoint</label>
-                        <input id="modelEndpoint" type="text" value="https://api.openai.com/v1/chat/completions" />
-                    </div>
-                    <div class="field-row-stacked">
-                        <label for="modelName">Model Name</label>
-                        <input id="modelName" type="text" value="gpt-4.1" />
-                    </div>
-                </div>
-            </div>
+          </div>
         </div>
+        <div class="window" role="tabpanel" id="model-tab">
+          <div class="window-body">
+            <div class="field-row-stacked">
+              <label for="apiKey">API Key</label>
+              <input id="apiKey" type="password" />
+            </div>
+            <div class="field-row-stacked">
+              <label for="modelEndpoint">Model Endpoint</label>
+              <input
+                id="modelEndpoint"
+                type="text"
+                value="https://api.openai.com/v1/chat/completions"
+              />
+            </div>
+            <div class="field-row-stacked">
+              <label for="modelName">Model Name</label>
+              <input id="modelName" type="text" value="gpt-4.1" />
+            </div>
+          </div>
+        </div>
+      </div>
     </fieldset>
-</body>
-
+  </body>
 </html>

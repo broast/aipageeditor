@@ -1,3 +1,3 @@
 chrome.runtime.onInstalled.addListener(() => {
-    chrome.storage.local.set({});
+  chrome.storage.local.set({});
 });
