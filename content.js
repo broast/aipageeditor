@@ -954,7 +954,7 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
       selectedElements,
     } = message;
     const settings = { apiKey, modelEndpoint, modelName };
-    const generation = { note, id, visible, selectedElements };
+    const generation = { note, id: id || crypto.randomUUID(), visible, selectedElements };
     await scanAndProcessElements(generation, settings);
   } else if (message.action === "toggleContentGeneration") {
     toggleContentGeneration(message.generationId, message.visible);

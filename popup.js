@@ -157,10 +157,7 @@ class PopupManager {
         } else if (message.action === "hideContentSpinner") {
           this.contentLoadingIndicator.style.display = "none";
         } else if (message.action === "contentGenerationAdded") {
-          const tabs = await this.getActiveTabs();
-          const url = new URL(tabs[0].url);
-          const domain = url.hostname;
-          this.addContentGenerationToPopup(domain, message.generation);
+          this.loadContentGenerations();
         }
       },
     );
