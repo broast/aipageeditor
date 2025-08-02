@@ -722,19 +722,39 @@ class PageModifier {
   }
 
   applyCssRulesToPage(cssRules, id) {
-    let existingStyle = document.getElementById("AIPE_style" + id);
-    if (existingStyle) {
-      existingStyle.remove();
+    // Head
+    let existingStyleHead = document.getElementById("AIPE_style_head_" + id);
+    if (existingStyleHead) {
+      existingStyleHead.innerHTML = cssRules;
+    } else {
+      let styleHead = document.createElement("style");
+      styleHead.id = "AIPE_style_head_" + id;
+      styleHead.innerHTML = cssRules;
+      (document.head || document.documentElement).appendChild(styleHead);
     }
 
-    let style = document.createElement("style");
-    style.id = "AIPE_style" + id;
-    style.innerHTML = cssRules;
-    document.head.appendChild(style);
+    // Body
+    const applyToBody = () => {
+        let existingStyleBody = document.getElementById("AIPE_style_body_" + id);
+        if (existingStyleBody) {
+            existingStyleBody.innerHTML = cssRules;
+        } else {
+            let styleBody = document.createElement("style");
+            styleBody.id = "AIPE_style_body_" + id;
+            styleBody.innerHTML = cssRules;
+            document.body.appendChild(styleBody);
+        }
+    }
+
+    if (document.body) {
+        applyToBody();
+    } else {
+        document.addEventListener("DOMContentLoaded", applyToBody);
+    }
   }
 
   clearAllAIPEStylesFromPage() {
-    let styles = document.querySelectorAll("[id^=AIPE_style]");
+    let styles = document.querySelectorAll("[id^=AIPE_style_]");
     styles.forEach((style) => {
       style.remove();
     });
