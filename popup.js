@@ -46,6 +46,31 @@ class PopupManager {
     this.loadSettings();
     this.updateTitle();
     this.loadContextSettings();
+    this.loadTextareaContent();
+    this.clearStylesNoteOnNextUpdate = false;
+    this.clearContentNoteOnNextUpdate = false;
+  }
+
+  async loadTextareaContent() {
+    const storageKey = "textareaContent";
+    const result = await new Promise(resolve => chrome.storage.local.get(storageKey, resolve));
+    const savedContent = result[storageKey] || {};
+    if (savedContent.styles) {
+        this.stylesNotesField.value = savedContent.styles;
+    }
+    if (savedContent.content) {
+        this.contentNotesField.value = savedContent.content;
+    }
+    this.updateSaveButtonState();
+  }
+
+  saveTextareaContent() {
+      const storageKey = "textareaContent";
+      const contentToSave = {
+          styles: this.stylesNotesField.value,
+          content: this.contentNotesField.value,
+      };
+      chrome.storage.local.set({ [storageKey]: contentToSave });
   }
 
   async updateTitle() {
@@ -56,36 +81,55 @@ class PopupManager {
       `🎨 AI Page Style Editor (${domain})`;
   }
 
-  initTabs() {
-    document.querySelectorAll('[role="tablist"]').forEach((tablist) => {
+  async initTabs() {
+    const tabLists = document.querySelectorAll('[role="tablist"]');
+    const storageKey = "activeTabs";
+    const savedTabs = (await new Promise(resolve => chrome.storage.local.get(storageKey, resolve)))[storageKey] || {};
+
+    tabLists.forEach(tablist => {
+      const tablistId = tablist.id;
+      if (!tablistId) {
+        console.warn("Tablist found without an ID, skipping persistence for it.", tablist);
+        return;
+      }
+
       const tabs = [...tablist.querySelectorAll('[role="tab"]')];
       const panels = tabs
-        .map((t) =>
-          document.getElementById(
-            t.querySelector("a").getAttribute("href").slice(1),
-          ),
-        )
+        .map(t => document.getElementById(t.querySelector("a").getAttribute("href").slice(1)))
         .filter(Boolean);
 
       const showActive = () => {
-        const activeId = tabs
-          .find((t) => t.getAttribute("aria-selected") === "true")
-          .querySelector("a")
-          .getAttribute("href")
-          .slice(1);
-        panels.forEach((p) => (p.hidden = p.id !== activeId));
+        const activeTab = tabs.find(t => t.getAttribute("aria-selected") === "true");
+        if (!activeTab) return;
+        const activeId = activeTab.querySelector("a").getAttribute("href").slice(1);
+        panels.forEach(p => (p.hidden = p.id !== activeId));
       };
 
-      tabs.forEach((tab) => {
-        tab.addEventListener("click", (e) => {
-          e.preventDefault(); // keep hash out of the URL
-          tabs.forEach((t) => t.setAttribute("aria-selected", "false"));
+      // Set initial active tab
+      const activeTabHref = savedTabs[tablistId];
+      let activeTab = tabs.find(t => t.querySelector("a").getAttribute("href") === activeTabHref);
+      if (!activeTab) {
+        activeTab = tabs[0];
+      }
+      tabs.forEach(t => t.setAttribute("aria-selected", "false"));
+      activeTab.setAttribute("aria-selected", "true");
+
+      tabs.forEach(tab => {
+        tab.addEventListener("click", async (e) => {
+          e.preventDefault();
+          tabs.forEach(t => t.setAttribute("aria-selected", "false"));
           tab.setAttribute("aria-selected", "true");
+          
+          const newActiveTabHref = tab.querySelector("a").getAttribute("href");
+          const currentSavedTabs = (await new Promise(resolve => chrome.storage.local.get(storageKey, resolve)))[storageKey] || {};
+          currentSavedTabs[tablistId] = newActiveTabHref;
+          await new Promise(resolve => chrome.storage.local.set({ [storageKey]: currentSavedTabs }, resolve));
+
           showActive();
         });
       });
 
-      showActive(); // set correct initial state
+      showActive();
     });
   }
 
@@ -105,6 +149,7 @@ class PopupManager {
       this.updateContextLabel();
     });
     this.sendScreenshot.addEventListener("change", () => {
+      this.saveContextSettings();
       this.updateContextLabel();
     });
 
@@ -128,9 +173,13 @@ class PopupManager {
     this.modelEndpointField.addEventListener("input", debouncedSave);
     this.modelNameField.addEventListener("input", debouncedSave);
 
-    this.stylesNotesField.addEventListener("input", () =>
-      this.updateSaveButtonState(),
-    );
+    const debouncedSaveText = this.debounce(() => this.saveTextareaContent(), 300);
+    this.stylesNotesField.addEventListener("input", () => {
+        this.updateSaveButtonState();
+        debouncedSaveText();
+    });
+    this.contentNotesField.addEventListener("input", debouncedSaveText);
+
     this.updateSaveButtonState();
 
     document
@@ -152,12 +201,32 @@ class PopupManager {
         if (message.action === "updatePopup") {
           this.styleGenerations.innerHTML = "";
           this.loadGenerations();
+          if (this.clearStylesNoteOnNextUpdate) {
+            this.stylesNotesField.value = "";
+            const storageKey = "textareaContent";
+            chrome.storage.local.get(storageKey, result => {
+                let content = result[storageKey] || {};
+                delete content.styles;
+                chrome.storage.local.set({ [storageKey]: content });
+            });
+            this.clearStylesNoteOnNextUpdate = false;
+          }
         } else if (message.action === "hideSpinner") {
           this.loadingIndicator.style.display = "none";
         } else if (message.action === "hideContentSpinner") {
           this.contentLoadingIndicator.style.display = "none";
         } else if (message.action === "contentGenerationAdded") {
           this.loadContentGenerations();
+          if (this.clearContentNoteOnNextUpdate) {
+            this.contentNotesField.value = "";
+            const storageKey = "textareaContent";
+            chrome.storage.local.get(storageKey, result => {
+                let content = result[storageKey] || {};
+                delete content.content;
+                chrome.storage.local.set({ [storageKey]: content });
+            });
+            this.clearContentNoteOnNextUpdate = false;
+          }
         }
       },
     );
@@ -223,6 +292,8 @@ class PopupManager {
     const tabs = await this.getActiveTabs();
     const settings = this.getSettingsFromInputs();
 
+    this.clearContentNoteOnNextUpdate = true;
+
     chrome.tabs.sendMessage(tabs[0].id, {
       action: "runScanAndProcessElements",
       note: note,
@@ -241,6 +312,8 @@ class PopupManager {
     const tabs = await this.getActiveTabs();
     const settings = this.getSettingsFromInputs();
     const isGlobal = this.globalStyleCheckbox.checked;
+
+    this.clearStylesNoteOnNextUpdate = true;
 
     const sendMessage = (screenshotUrl = null) => {
       chrome.tabs.sendMessage(tabs[0].id, {
@@ -836,6 +909,7 @@ class PopupManager {
     const domain = url.hostname;
     let data = {
       includeDefaultContext: this.includeDefaultContext.checked,
+      sendScreenshot: this.sendScreenshot.checked,
       includeChangeHistory: this.includeChangeHistory.checked,
       includeGlobalChangeHistory: this.includeGlobalChangeHistory.checked,
     };
@@ -851,6 +925,7 @@ class PopupManager {
       if (data) {
         this.includeDefaultContext.checked =
           data.includeDefaultContext !== false;
+        this.sendScreenshot.checked = data.sendScreenshot === true;
         this.includeChangeHistory.checked = data.includeChangeHistory === true;
         this.includeGlobalChangeHistory.checked =
           data.includeGlobalChangeHistory === true;
