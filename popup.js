@@ -304,26 +304,33 @@ class PopupManager {
     const url = new URL(tabs[0].url);
     const domain = url.hostname;
     this.styleGenerations.innerHTML = "";
-    chrome.storage.local.get(["global_styles", domain], (result) => {
-      let globalData = result["global_styles"];
-      if (globalData && globalData.generations) {
-        globalData.generations.forEach((generation) => {
-          this.addGenerationToPopup("global_styles", generation, true);
-        });
-      }
 
-      let domainData = result[domain];
-      if (domainData && domainData.generations) {
-        domainData.generations.forEach((generation) => {
-          this.addGenerationToPopup(domain, generation, false);
-        });
+    const result = await new Promise((resolve) =>
+      chrome.storage.local.get(["global_styles", domain], resolve),
+    );
+
+    let globalData = result["global_styles"];
+    if (globalData && globalData.generations) {
+      for (const generation of globalData.generations) {
+        await this.addGenerationToPopup("global_styles", generation, true);
       }
-    });
+    }
+
+    let domainData = result[domain];
+    if (domainData && domainData.generations) {
+      for (const generation of domainData.generations) {
+        await this.addGenerationToPopup(domain, generation, false);
+      }
+    }
   }
 
-  addGenerationToPopup(domain, generationData, isGlobal) {
+  async addGenerationToPopup(storageKey, generationData, isGlobal) {
     this.loadingIndicator.style.display = "none";
     const ID_PREFIX = "AIPE_GENERATION_";
+
+    const tabs = await this.getActiveTabs();
+    const url = new URL(tabs[0].url);
+    const domain = url.hostname;
 
     if (this.styleGenerations.style.display === "none") {
       this.styleGenerations.style.display = "block";
@@ -351,27 +358,62 @@ class PopupManager {
     visibilityCheckbox.type = "checkbox";
     const checkboxId = "vis-checkbox-" + generationData.id;
     visibilityCheckbox.id = checkboxId;
-    visibilityCheckbox.checked = generationData.visible !== false;
     visibilityCheckbox.style.marginRight = "5px";
 
-    visibilityCheckbox.addEventListener("change", () => {
-      chrome.storage.local.get([domain], (result) => {
-        let data = result[domain];
-        let generations = data.generations;
-        let targetGeneration = generations.find(
-          (g) => g.id === generationData.id,
+    if (isGlobal) {
+      const result = await new Promise((resolve) =>
+        chrome.storage.local.get([domain], resolve),
+      );
+      const domainData = result[domain];
+      if (
+        domainData &&
+        domainData.global_visibility &&
+        domainData.global_visibility[generationData.id] !== undefined
+      ) {
+        visibilityCheckbox.checked =
+          domainData.global_visibility[generationData.id];
+      } else {
+        visibilityCheckbox.checked = generationData.visible !== false;
+      }
+    } else {
+      visibilityCheckbox.checked = generationData.visible !== false;
+    }
+
+    visibilityCheckbox.addEventListener("change", async () => {
+      const tabs = await this.getActiveTabs();
+      if (isGlobal) {
+        const result = await new Promise((resolve) =>
+          chrome.storage.local.get(domain, resolve),
         );
-        if (targetGeneration) {
-          targetGeneration.visible = visibilityCheckbox.checked;
+        let domainData = result[domain] || {};
+        if (!domainData.global_visibility) {
+          domainData.global_visibility = {};
         }
-        data.generations = generations;
-        chrome.storage.local.set({ [domain]: data }, () => {
-          chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            chrome.tabs.sendMessage(tabs[0].id, {
-              action: "runClearAndReapply",
-            });
-          });
-        });
+        domainData.global_visibility[generationData.id] =
+          visibilityCheckbox.checked;
+        await new Promise((resolve) =>
+          chrome.storage.local.set({ [domain]: domainData }, resolve),
+        );
+      } else {
+        const result = await new Promise((resolve) =>
+          chrome.storage.local.get(storageKey, resolve),
+        );
+        let data = result[storageKey];
+        if (data && data.generations) {
+          let targetGeneration = data.generations.find(
+            (g) => g.id === generationData.id,
+          );
+          if (targetGeneration) {
+            targetGeneration.visible = visibilityCheckbox.checked;
+            await new Promise((resolve) =>
+              chrome.storage.local.set({ [storageKey]: data }, resolve),
+            );
+          }
+        }
+      }
+      // Notify content script to re-apply styles
+      chrome.tabs.sendMessage(tabs[0].id, {
+        action: "runClearAndReapply",
       });
     });
 
@@ -459,18 +501,20 @@ class PopupManager {
     let removeButton = document.createElement("button");
     removeButton.innerText = "🗑️ Remove";
     removeButton.addEventListener("click", () => {
-      chrome.storage.local.get([domain], (result) => {
-        let data = result[domain];
+      chrome.storage.local.get([storageKey], (result) => {
+        let data = result[storageKey];
         let generations = data.generations;
         let newGenerations = generations.filter((generation) => {
           return generation.id !== generationData.id;
         });
         data.generations = newGenerations;
-        chrome.storage.local.set({ [domain]: data }, () => {
+        chrome.storage.local.set({ [storageKey]: data }, () => {
           styleGeneration.remove();
         });
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-          chrome.tabs.sendMessage(tabs[0].id, { action: "runClearAndReapply" });
+          chrome.tabs.sendMessage(tabs[0].id, {
+            action: "runClearAndReapply",
+          });
         });
       });
     });

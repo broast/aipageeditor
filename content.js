@@ -745,16 +745,28 @@ class PageModifier {
     let url = new URL(window.location.href);
     let domain = url.hostname;
 
+    let domainData = await Storage.get(domain);
     let globalData = await Storage.get("global_styles");
+
     if (globalData && globalData.generations) {
       globalData.generations.forEach((generation) => {
-        if (generation.visible !== false) {
+        let isVisible = generation.visible !== false; // Default visibility
+
+        // Check for a domain-specific override
+        if (
+          domainData &&
+          domainData.global_visibility &&
+          domainData.global_visibility[generation.id] !== undefined
+        ) {
+          isVisible = domainData.global_visibility[generation.id];
+        }
+
+        if (isVisible) {
           this.applyCssRulesToPage(generation.styles, generation.id);
         }
       });
     }
 
-    let domainData = await Storage.get(domain);
     if (domainData && domainData.generations) {
       domainData.generations.forEach((generation) => {
         if (generation.visible !== false) {
