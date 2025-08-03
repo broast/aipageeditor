@@ -114,7 +114,7 @@ class OpenAI {
         messages: [
           {
             role: "system",
-            content: `You are a web browser html bot. You use the notes provided by the user to help alter the html of an element on the page based on those instructions in those notes.\nYou will be given the outer html of the page. Please return custom html to be applied to the page, which will be injected into the page.\n\nFor example, if the command is make all text bigger, your response could be:\n<h1 style="font-size: 20px;">All text is bigger</h1>\n\nDo not respond with any other text. Only respond with the html, as your responses are being processed by a machine.\nThe browser is Chrome, so you can use any html that works in Chrome.\n`,
+            content: `You are a web browser html bot. You use the notes provided by the user to help alter the html of an element on the page based on those instructions in those notes.\nYou will be given the outer html of the page. Please return custom html to be applied to the page, which will be injected into the page.\n\nFor example, if the command is make all text bigger, your response could be:\n<h1 style=\"font-size: 20px;\">All text is bigger</h1>\n\nDo not respond with any other text. Only respond with the html, as your responses are being processed by a machine.\nThe browser is Chrome, so you can use any html that works in Chrome.\n`,
           },
           {
             role: "user",
@@ -800,6 +800,28 @@ class PageModifier {
 
 const pageModifier = new PageModifier();
 
+const contentGenCache = {
+  async get(key) {
+    const response = await chrome.runtime.sendMessage({ type: 'cache', action: 'get', key });
+    if (response && !response.success) throw new Error(response.error);
+    return response ? response.value : undefined;
+  },
+  async set(key, value) {
+    const response = await chrome.runtime.sendMessage({ type: 'cache', action: 'set', key, value });
+    if (response && !response.success) throw new Error(response.error);
+  },
+  async has(key) {
+    const response = await chrome.runtime.sendMessage({ type: 'cache', action: 'has', key });
+    if (response && !response.success) throw new Error(response.error);
+    return response ? response.value : false;
+  },
+  async clear() {
+    const response = await chrome.runtime.sendMessage({ type: 'cache', action: 'clear' });
+    if (response && !response.success) throw new Error(response.error);
+  },
+};
+
+
 async function processUserNote(
   note,
   existingId = null,
@@ -985,6 +1007,7 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
       modelName,
       selectedElements,
     } = message;
+
     const settings = { apiKey, modelEndpoint, modelName };
     const generation = { note, id: id || crypto.randomUUID(), visible, selectedElements };
     await scanAndProcessElements(generation, settings);
@@ -1012,6 +1035,7 @@ async function toggleContentGeneration(generationId, visible) {
       newElement.setAttribute("data-vk-original-html", originalHtml);
       newElement.setAttribute("data-vk-generated-html", generatedHtml);
       newElement.setAttribute("data-vk-generation-id", generationId);
+      newElement.setAttribute("data-vk-processed", "true");
       element.outerHTML = newElement.outerHTML;
     } else {
       element.outerHTML = htmlToSet;
@@ -1020,6 +1044,7 @@ async function toggleContentGeneration(generationId, visible) {
 }
 
 async function removeContentGeneration(generationId) {
+  await contentGenCache.clear();
   const elements = document.querySelectorAll(
     `[data-vk-generation-id="${generationId}"]`,
   );
@@ -1043,7 +1068,7 @@ function updateToast() {
     }
     if (totalProcessed > 0) {
       pageModifier.showToast(
-        `Content generation complete. Processed ${totalProcessed} elements.`,
+        `Content generation complete. Processed ${totalProcessed} elements.`, 
       );
       totalQueued = 0;
       totalProcessed = 0;
@@ -1062,12 +1087,34 @@ function updateToast() {
 
 async function _processElement(element, generation, openAI) {
   try {
-    const originalHtml = element.outerHTML;
-    const { html } = await openAI.generateContent(
-      generation.note,
-      originalHtml,
-      generation.selectedElements,
-    );
+    const isProcessed =
+      element.dataset.vkProcessed === "true" &&
+      element.dataset.vkGenerationId === generation.id;
+    const originalHtml = isProcessed
+      ? element.dataset.vkOriginalHtml
+      : element.outerHTML;
+
+    if (!originalHtml) {
+      return;
+    }
+
+    const cacheKey = JSON.stringify({
+      html: originalHtml,
+      note: generation.note,
+    });
+
+    let html;
+    if (await contentGenCache.has(cacheKey)) {
+      html = await contentGenCache.get(cacheKey);
+    } else {
+      const result = await openAI.generateContent(
+        generation.note,
+        originalHtml,
+        generation.selectedElements,
+      );
+      html = result.html;
+      await contentGenCache.set(cacheKey, html);
+    }
 
     const tempDiv = document.createElement("div");
     tempDiv.innerHTML = html;
@@ -1141,6 +1188,15 @@ async function scanAndProcessElements(generation, settings) {
     settings.modelName,
   );
 
+  // --- Reprocessing Logic ---
+  // Find elements from a previous run of THIS generation and re-queue them.
+  const elementsToReprocess = document.querySelectorAll(`[data-vk-generation-id="${generation.id}"]`);
+  elementsToReprocess.forEach(element => {
+      element.removeAttribute('data-vk-processed');
+      enqueueElement(element, generation, openAI);
+  });
+
+  // --- New Element Logic ---
   if (!generation.selectors) {
     const { selector } = await openAI.generateSelector(
       generation.note,
@@ -1176,7 +1232,7 @@ async function scanAndProcessElements(generation, settings) {
 
   observer.observe(document.body, { childList: true, subtree: true });
 
-  // Initial scan
+  // Initial scan for new elements
   generation.selectors.forEach((selector) => {
     document.querySelectorAll(selector).forEach((element) => {
       enqueueElement(element, generation, openAI);
