@@ -508,22 +508,34 @@ class PopupManager {
     topContainer.appendChild(label);
     styleGeneration.appendChild(topContainer);
 
+    const sendMessage = (note, screenshotUrl = null) => {
+        chrome.tabs.sendMessage(tabs[0].id, {
+            action: "runProcessUserNote",
+            note: note,
+            id: generationData.id,
+            visible: generationData.visible,
+            apiKey: this.getSettingsFromInputs().apiKey,
+            modelEndpoint: this.getSettingsFromInputs().modelEndpoint,
+            modelName: this.getSettingsFromInputs().modelName,
+            includeDefaultContext: this.includeDefaultContext.checked,
+            isGlobal: isGlobal,
+            screenshotUrl: screenshotUrl,
+            includeChangeHistory: this.includeChangeHistory.checked,
+            includeGlobalChangeHistory: this.includeGlobalChangeHistory.checked,
+        });
+    };
+
     let regenerateButton = document.createElement("button");
     regenerateButton.innerText = "🦎 Regenerate";
     regenerateButton.addEventListener("click", async () => {
       this.loadingIndicator.style.display = "block";
-      const tabs = await this.getActiveTabs();
-      const settings = this.getSettingsFromInputs();
-      chrome.tabs.sendMessage(tabs[0].id, {
-        action: "runProcessUserNote",
-        note: generationData.note,
-        id: generationData.id,
-        visible: generationData.visible,
-        apiKey: settings.apiKey,
-        modelEndpoint: settings.modelEndpoint,
-        modelName: settings.modelName,
-        isGlobal: isGlobal,
-      });
+      if (this.sendScreenshot.checked) {
+        chrome.tabs.captureVisibleTab(null, { format: "png" }, (dataUrl) => {
+            sendMessage(generationData.note, dataUrl);
+        });
+      } else {
+        sendMessage(generationData.note);
+      }
     });
 
     let modifyButton = document.createElement("button");
@@ -543,18 +555,15 @@ class PopupManager {
       let newNote = noteDiv.innerText;
       generationData.note = newNote;
       this.loadingIndicator.style.display = "block";
-      const settings = this.getSettingsFromInputs();
-      const tabs = await this.getActiveTabs();
-      chrome.tabs.sendMessage(tabs[0].id, {
-        action: "runProcessUserNote",
-        note: newNote,
-        id: generationData.id,
-        visible: generationData.visible,
-        apiKey: settings.apiKey,
-        modelEndpoint: settings.modelEndpoint,
-        modelName: settings.modelName,
-        isGlobal: isGlobal,
-      });
+      
+      if (this.sendScreenshot.checked) {
+        chrome.tabs.captureVisibleTab(null, { format: "png" }, (dataUrl) => {
+            sendMessage(newNote, dataUrl);
+        });
+      } else {
+        sendMessage(newNote);
+      }
+
       noteDiv.contentEditable = false;
       applyButton.style.display = "none";
       modifyButton.style.display = "inline-block";

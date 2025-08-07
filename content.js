@@ -2,7 +2,11 @@ class Storage {
   static get(key) {
     return new Promise((resolve) => {
       chrome.storage.local.get(key, (result) => {
-        resolve(result[key]);
+        if (key === null) {
+          resolve(result);
+        } else {
+          resolve(result[key]);
+        }
       });
     });
   }
@@ -15,27 +19,32 @@ class Storage {
     });
   }
 
-  static async addGeneration(domain, generationData) {
-    let data = (await this.get(domain)) || {};
-    if (!data.generations) {
-      data.generations = [];
-    }
-    let existingGeneration = null;
-    if (generationData.id) {
-      existingGeneration = data.generations.find(
-        (g) => g.id === generationData.id,
-      );
-      data.generations = data.generations.filter(
-        (g) => g.id !== generationData.id,
-      );
-    }
+  static addGeneration(domain, generationData) {
+    return new Promise((resolve) => {
+      this.get(domain).then((domainData) => {
+        if (!domainData) {
+          domainData = { generations: [] };
+        }
+        const existingIndex = domainData.generations.findIndex(
+          (g) => g.id === generationData.id,
+        );
+        if (existingIndex !== -1) {
+          const existingGeneration = domainData.generations[existingIndex];
+          if (!generationData.history) {
+            generationData.history = [];
+          }
+          const previousHistory = existingGeneration.history || [];
+          const historyItem = { ...existingGeneration };
+          delete historyItem.history;
 
-    if (existingGeneration && generationData.visible === undefined) {
-      generationData.visible = existingGeneration.visible;
-    }
-
-    data.generations.push(generationData);
-    return this.set(domain, data);
+          generationData.history = [...previousHistory, historyItem];
+          domainData.generations[existingIndex] = generationData;
+        } else {
+          domainData.generations.push(generationData);
+        }
+        this.set(domain, domainData).then(resolve);
+      });
+    });
   }
 
   static async removeGeneration(domain, generationId) {
@@ -149,24 +158,16 @@ class OpenAI {
     htmlStructure,
     selectedElementsHtml,
     screenshotUrl = null,
-    changeHistory = [],
+    conversationHistory = [],
   ) {
     const selectedElementsPrompt = selectedElementsHtml
       ? `The user has selected the following elements html to include in the context: ${selectedElementsHtml}`
       : "";
 
-    let changeHistoryPrompt = "";
-    if (changeHistory.length > 0) {
-      changeHistoryPrompt = "Here is the change history for this page:\n";
-      changeHistory.forEach((generation) => {
-        changeHistoryPrompt += `User note: ${generation.note}\nGenerated CSS: ${generation.styles}\n`;
-      });
-    }
-
     const userContent = [
       {
         type: "text",
-        text: `These are the users notes for this website: ${note}\n\n${selectedElementsPrompt}\n${changeHistoryPrompt}\nHere is the html structure of the page: ${htmlStructure}\n\nAs a reminder, the users notes are: ${note}. Please return CSS that will modify the page to match the users notes.. do not confuse the words in the users notes for class names or tags, the user does not know about those and can not see those!! The user only provides visual changes to the user experience. \n\nNote: Please Do Not change anything the user does not ask you to change.... you will be rewarded as always for high quality work only. Thank you!!! (You have currently earned 7,830 rewards and are on a 23 day streak) `,
+        text: `These are the users notes for this website: ${note}\n\n${selectedElementsPrompt}\nHere is the html structure of the page: ${htmlStructure}\n\nAs a reminder, the users notes are: ${note}. Please return CSS that will modify the page to match the users notes.. do not confuse the words in the users notes for class names or tags, the user does not know about those and can not see those!! The user only provides visual changes to the user experience. \n\nNote: Please Do Not change anything the user does not ask you to change.... you will be rewarded as always for high quality work only. Thank you!!! (You have currently earned 7,830 rewards and are on a 23 day streak) `,
       },
     ];
 
@@ -186,21 +187,32 @@ class OpenAI {
       headers["Authorization"] = `Bearer ${this.apiKey}`;
     }
 
+    const messages = [
+      {
+        role: "system",
+        content: `You are a web browser css bot. You use the notes provided by the user to help alter the css styles of the page based on those instructions in those notes.
+You will be given the source html of the page. Please return custom css rules to be applied to the page, which will be injected into the page.
+
+For example, if the command is make all text bigger, your response could be:
+* { font-size: 20px; }
+
+Do not respond with any other text. Only respond with the css rules, as your responses are being processed by a machine.
+The browser is Chrome, so you can use any css that works in Chrome. These styles will likely be at the top of the file, so you may use !important if needed.
+`,
+      },
+      ...conversationHistory,
+      {
+        role: "user",
+        content: userContent,
+      },
+    ]
+
     const requestInfo = {
       method: "POST",
       headers: headers,
       body: JSON.stringify({
         model: this.modelName,
-        messages: [
-          {
-            role: "system",
-            content: `You are a web browser css bot. You use the notes provided by the user to help alter the css styles of the page based on those instructions in those notes.\nYou will be given the source html of the page. Please return custom css rules to be applied to the page, which will be injected into the page.\n\nFor example, if the command is make all text bigger, your response could be:\n* { font-size: 20px; }\n\nDo not respond with any other text. Only respond with the css rules, as your responses are being processed by a machine.\nThe browser is Chrome, so you can use any css that works in Chrome. These styles will likely be at the top of the file, so you may use !important if needed.\n`,
-          },
-          {
-            role: "user",
-            content: userContent,
-          },
-        ],
+        messages: messages,
       }),
     };
 
@@ -211,17 +223,17 @@ class OpenAI {
       throw error;
     }
     let responseData = await response.json();
+    let css = responseData.choices[0].message.content;
 
-    if (responseData.choices[0].message.content.startsWith("```css\n")) {
-      responseData = responseData.choices[0].message.content.replace(
+    if (css.startsWith("```css\n")) {
+      css = css.replace(
         "```css\n",
         "",
       );
-      responseData = responseData.replace("```", "");
-    } else {
-      responseData = responseData.choices[0].message.content;
-    }
-    return { css: responseData, requestBody: requestInfo.body };
+      css = css.replace("```", "");
+    } 
+    
+    return { css: css, requestBody: requestInfo.body, response: responseData };
   }
 
   async generateSelector(note, outerHtml, selectedElements) {
@@ -822,7 +834,7 @@ const contentGenCache = {
 };
 
 
-async function processUserNote(
+async function processUserNoteWrapper(
   note,
   existingId = null,
   apiKey,
@@ -854,24 +866,76 @@ async function processUserNote(
         }
       }
 
-      let changeHistory = [];
+      let conversationHistory = [];
       if (includeChangeHistory) {
-        let domainData = await Storage.get(domain);
-        if (domainData && domainData.generations) {
-          changeHistory = changeHistory.concat(domainData.generations);
-        }
-
+        let allGenerations = [];
         if (includeGlobalChangeHistory) {
-          let globalData = await Storage.get("global_styles");
-          if (globalData && globalData.generations) {
-            changeHistory = changeHistory.concat(globalData.generations);
+          const allData = await Storage.get(null);
+          for (const key in allData) {
+            if (
+              allData[key] &&
+              Array.isArray(allData[key].generations) &&
+              !key.endsWith("_content") &&
+              key !== "global_styles"
+            ) {
+              allGenerations = allGenerations.concat(allData[key].generations);
+            }
+          }
+        } else {
+          let domainData = await Storage.get(domain);
+          if (domainData && domainData.generations) {
+            allGenerations = allGenerations.concat(domainData.generations);
           }
         }
 
-        changeHistory.sort((a, b) => {
-          return new Date(b.timestamp) - new Date(a.timestamp);
+        // also include global styles
+        let globalData = await Storage.get("global_styles");
+        if (globalData && globalData.generations) {
+            allGenerations = allGenerations.concat(globalData.generations);
+        }
+
+        const allHistoricalGenerations = [];
+
+        allGenerations.forEach((generation) => {
+            // For ALL generations, include the full history.
+            if (generation.history) {
+                allHistoricalGenerations.push(...generation.history);
+            }
+            // And also include the generation itself.
+            allHistoricalGenerations.push(generation);
         });
-        changeHistory = changeHistory.slice(0, 10);
+
+
+        allHistoricalGenerations.sort((a, b) => {
+          return new Date(a.timestamp) - new Date(b.timestamp);
+        });
+
+        allHistoricalGenerations.forEach((gen) => {
+          if (gen.requestBody && gen.response) {
+            try {
+                const requestBody = JSON.parse(gen.requestBody);
+                if (requestBody.messages) {
+                    const userMessage = requestBody.messages.find(m => m.role === 'user');
+                    if (userMessage) {
+                        conversationHistory.push({
+                            role: "user",
+                            content: userMessage.content,
+                        });
+                        conversationHistory.push({
+                            role: "assistant",
+                            content: gen.response.choices[0].message.content,
+                        });
+                    }
+                }
+            } catch (e) {
+                console.error("Error parsing generation data", e);
+            }
+          }
+        });
+
+        if(conversationHistory.length > 20) {
+          conversationHistory = conversationHistory.slice(-20); // 10 pairs
+        }
       }
 
       pageModifier.showToast("Generating new styles for this page...", 3000);
@@ -883,12 +947,12 @@ async function processUserNote(
         })
         .join("\n");
 
-      const { css, requestBody } = await openAI.generateCss(
+      const { css, requestBody, response } = await openAI.generateCss(
         note,
         cleanedHtmlStructure,
         selectedElementsHtml,
         screenshotUrl,
-        changeHistory,
+        conversationHistory,
       );
 
       let generationId = existingId ? existingId : crypto.randomUUID();
@@ -896,6 +960,7 @@ async function processUserNote(
         note: note,
         styles: css,
         requestBody: requestBody,
+        response: response,
         id: generationId,
         timestamp: new Date().toISOString(),
       };
@@ -965,7 +1030,7 @@ async function processUserNote(
 chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
   if (message.action === "runProcessUserNote") {
     try {
-      await processUserNote(
+      await processUserNoteWrapper(
         message.note,
         message.id,
         message.apiKey,
