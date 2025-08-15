@@ -609,14 +609,15 @@ class PopupManager {
     copyButton.style.position = "absolute";
     copyButton.style.left = "0px";
     copyButton.style.fontWeight = "normal";
-    copyButton.innerText = "📋 Copy Selector";
+    copyButton.innerText = "📋 Copy CSS";
     copyButton.className = "style-generation-action-button";
     copyButton.addEventListener("click", () => {
-      navigator.clipboard.writeText(generationData.selectors.join(", ")).then(
+      let css = generationData.styles || "";
+      navigator.clipboard.writeText(css).then(
         () => {
           copyButton.innerText = "✅ Copied!";
           setTimeout(() => {
-            copyButton.innerText = "📋 Copy Selector";
+            copyButton.innerText = "📋 Copy CSS";
           }, 1000);
         },
         (err) => {
