@@ -609,14 +609,14 @@ class PopupManager {
     copyButton.style.position = "absolute";
     copyButton.style.left = "0px";
     copyButton.style.fontWeight = "normal";
-    copyButton.innerText = "📋 Copy CSS";
-    copyButton.className = "style-generation-copy-button";
+    copyButton.innerText = "📋 Copy Selector";
+    copyButton.className = "style-generation-action-button";
     copyButton.addEventListener("click", () => {
-      navigator.clipboard.writeText(generationData.styles).then(
+      navigator.clipboard.writeText(generationData.selectors.join(", ")).then(
         () => {
           copyButton.innerText = "✅ Copied!";
           setTimeout(() => {
-            copyButton.innerText = "📋 Copy CSS";
+            copyButton.innerText = "📋 Copy Selector";
           }, 1000);
         },
         (err) => {
@@ -818,9 +818,34 @@ class PopupManager {
       });
     });
 
+    let copyButton = document.createElement("span");
+    copyButton.style.background = "none";
+    copyButton.style.border = "none";
+    copyButton.style.color = "rgba(0, 0, 0, 0.5)";
+    copyButton.style.cursor = "pointer";
+    copyButton.style.position = "absolute";
+    copyButton.style.left = "0px";
+    copyButton.style.fontWeight = "normal";
+    copyButton.innerText = "📋 Copy Selector";
+    copyButton.className = "style-generation-action-button";
+    copyButton.addEventListener("click", () => {
+      navigator.clipboard.writeText(generationData.selectors.join(", ")).then(
+        () => {
+          copyButton.innerText = "✅ Copied!";
+          setTimeout(() => {
+            copyButton.innerText = "📋 Copy Selector";
+          }, 1000);
+        },
+        (err) => {
+          console.error("Could not copy text: ", err);
+        },
+      );
+    });
+
     let buttonsDiv = document.createElement("div");
     buttonsDiv.style.display = "flex";
     buttonsDiv.style.justifyContent = "right";
+    buttonsDiv.appendChild(copyButton);
     buttonsDiv.appendChild(regenerateButton);
     buttonsDiv.appendChild(modifyButton);
     buttonsDiv.appendChild(applyButton);
