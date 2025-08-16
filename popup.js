@@ -130,11 +130,19 @@ class PopupManager {
           await new Promise(resolve => chrome.storage.local.set({ [storageKey]: currentSavedTabs }, resolve));
 
           showActive();
+          this.updateAdvancedOptionsMaxHeight();
         });
       });
 
       showActive();
     });
+  }
+
+  updateAdvancedOptionsMaxHeight() {
+    const content = document.getElementById("advanced-options-content");
+    if (content.style.maxHeight && content.style.maxHeight !== "0px") {
+      content.style.maxHeight = content.scrollHeight + "px";
+    }
   }
 
   initEventListeners() {
@@ -198,6 +206,7 @@ class PopupManager {
         } else {
           content.style.maxHeight = content.scrollHeight + "px";
           toggle.innerText = "▼ Advanced options";
+          this.updateAdvancedOptionsMaxHeight();
         }
       });
 
