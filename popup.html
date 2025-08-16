@@ -132,6 +132,21 @@
         /* Allows the emoji to be treated as a block for rotation */
       }
 
+      .title-bar-buttons {
+        float: right;
+      }
+      .title-bar-button {
+        min-width: 0px;
+        padding: 0px 4px;
+        color: inherit;
+        text-shadow: 1px 1px rgba(255, 255, 255, 0.7), -1px -1px rgba(0, 0, 0, 0.3);
+        font-size: 12px !important;
+      }
+      
+      button {
+        color: inherit;
+        text-shadow: 1px 1px rgba(255, 255, 255, 0.7), -1px -1px rgba(0, 0, 0, 0.3);
+      }
       /* Keyframe animation for 180-degree rotation around the Z-axis (2D flip effect) */
       @keyframes rotate180 {
         from {
@@ -156,7 +171,7 @@
 
   <body style="width: 400px; margin: 2px; padding: 2px" class="window">
     <div class="title-bar">
-      <div class="title-bar-text">🎨 AI Page Editor</div>
+      <div class="title-bar-text">🎨 AI Page Editor</div><div class="title-bar-buttons"><button class="title-bar-button" title="Import layers">📂</button><button class="title-bar-button" title="Export layers">💾</button></div>
     </div>
 
     <menu role="tablist" id="generation-tabs-list" style="margin-top: 10px">
