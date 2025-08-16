@@ -810,6 +810,9 @@ class PageModifier {
 
 const pageModifier = new PageModifier();
 
+let activeContentGenerations = [];
+const generationObservers = new Map();
+
 const contentGenCache = {
   async get(key) {
     const response = await chrome.runtime.sendMessage({ type: 'cache', action: 'get', key });
@@ -1107,12 +1110,35 @@ async function toggleContentGeneration(generationId, visible) {
 }
 
 async function removeContentGeneration(generationId) {
+  const observer = generationObservers.get(generationId);
+  if (observer) {
+    observer.disconnect();
+    generationObservers.delete(generationId);
+  }
+
+  activeContentGenerations = activeContentGenerations.filter(
+    (g) => g.id !== generationId,
+  );
+
   await contentGenCache.clear();
   const elements = document.querySelectorAll(
     `[data-vk-generation-id="${generationId}"]`,
   );
   elements.forEach((element) => {
-    element.outerHTML = element.getAttribute("data-vk-original-html");
+    const originalHtml = element.getAttribute("data-vk-original-html");
+    if (originalHtml) {
+      const tempDiv = document.createElement("div");
+      tempDiv.innerHTML = originalHtml;
+      const newElement = tempDiv.firstElementChild;
+      if (newElement) {
+        newElement.removeAttribute("data-vk-processed");
+        element.parentNode.replaceChild(newElement, element);
+      } else {
+        element.outerHTML = originalHtml;
+      }
+    } else {
+        element.removeAttribute("data-vk-processed");
+    }
   });
 }
 
@@ -1295,6 +1321,8 @@ async function scanAndProcessElements(generation, settings) {
 
   observer.observe(document.body, { childList: true, subtree: true });
 
+  generationObservers.set(generation.id, observer);
+
   // Initial scan for new elements
   generation.selectors.forEach((selector) => {
     document.querySelectorAll(selector).forEach((element) => {
@@ -1311,7 +1339,8 @@ async function initializeContentGeneration() {
   let domainData = await Storage.get(domain + "_content");
 
   if (domainData && domainData.generations) {
-    for (const generation of domainData.generations) {
+    activeContentGenerations = domainData.generations;
+    for (const generation of activeContentGenerations) {
       if (generation.visible === false) continue;
       await scanAndProcessElements(generation, settings);
     }
