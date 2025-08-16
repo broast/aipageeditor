@@ -78,7 +78,7 @@ class PopupManager {
     const url = new URL(tabs[0].url);
     const domain = url.hostname;
     document.querySelector(".title-bar-text").innerText =
-      `🎨 AI Page Style Editor (${domain})`;
+      `🎨 AI Page Editor (${domain})`;
   }
 
   async initTabs() {
@@ -526,7 +526,9 @@ class PopupManager {
     };
 
     let regenerateButton = document.createElement("button");
-    regenerateButton.innerText = "🦎 Regenerate";
+    regenerateButton.innerText = "🦎";
+    regenerateButton.title = "Regenerate";
+    regenerateButton.className = "style-generation-action-button-icon";
     regenerateButton.addEventListener("click", async () => {
       this.loadingIndicator.style.display = "block";
       if (this.sendScreenshot.checked) {
@@ -539,9 +541,13 @@ class PopupManager {
     });
 
     let modifyButton = document.createElement("button");
-    modifyButton.innerText = "✏️ Modify";
+    modifyButton.innerText = "✏️";
+    modifyButton.title = "Modify";
+    modifyButton.className = "style-generation-action-button-icon";
     let applyButton = document.createElement("button");
-    applyButton.innerText = "🖌️ Apply";
+    applyButton.innerText = "✔️";
+    applyButton.title = "Apply";
+    applyButton.className = "style-generation-action-button-icon";
     applyButton.style.display = "none";
 
     modifyButton.addEventListener("click", () => {
@@ -581,7 +587,9 @@ class PopupManager {
     });
 
     let removeButton = document.createElement("button");
-    removeButton.innerText = "🗑️ Remove";
+    removeButton.innerText = "🗑️";
+    removeButton.title = "Remove";
+    removeButton.className = "style-generation-action-button-icon";
     removeButton.addEventListener("click", () => {
       chrome.storage.local.get([storageKey], (result) => {
         let data = result[storageKey];
@@ -627,6 +635,7 @@ class PopupManager {
     });
 
     let buttonsDiv = document.createElement("div");
+    buttonsDiv.className = "action-buttons-container";
     buttonsDiv.style.display = "flex";
     buttonsDiv.style.justifyContent = "right";
     buttonsDiv.appendChild(copyButton);
@@ -733,7 +742,9 @@ class PopupManager {
     contentGeneration.appendChild(topContainer);
 
     let regenerateButton = document.createElement("button");
-    regenerateButton.innerText = "🦎 Regenerate";
+    regenerateButton.innerText = "🦎";
+    regenerateButton.title = "Regenerate";
+    regenerateButton.className = "style-generation-action-button-icon";
     regenerateButton.addEventListener("click", async () => {
       this.contentLoadingIndicator.style.display = "block";
       const tabs = await this.getActiveTabs();
@@ -752,9 +763,13 @@ class PopupManager {
     });
 
     let modifyButton = document.createElement("button");
-    modifyButton.innerText = "✏️ Modify";
+    modifyButton.innerText = "✏️";
+    modifyButton.title = "Modify";
+    modifyButton.className = "style-generation-action-button-icon";
     let applyButton = document.createElement("button");
-    applyButton.innerText = "🖌️ Apply";
+    applyButton.innerText = "✔️";
+    applyButton.title = "Apply";
+    applyButton.className = "style-generation-action-button-icon";
     applyButton.style.display = "none";
 
     modifyButton.addEventListener("click", () => {
@@ -796,7 +811,9 @@ class PopupManager {
     });
 
     let removeButton = document.createElement("button");
-    removeButton.innerText = "🗑️ Remove";
+    removeButton.innerText = "🗑️";
+    removeButton.title = "Remove";
+    removeButton.className = "style-generation-action-button-icon";
     removeButton.addEventListener("click", () => {
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         chrome.tabs.sendMessage(tabs[0].id, {
@@ -844,6 +861,7 @@ class PopupManager {
     });
 
     let buttonsDiv = document.createElement("div");
+    buttonsDiv.className = "action-buttons-container";
     buttonsDiv.style.display = "flex";
     buttonsDiv.style.justifyContent = "right";
     buttonsDiv.appendChild(copyButton);
