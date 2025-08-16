@@ -34,6 +34,10 @@ class PopupManager {
     this.modelNameField = document.getElementById("modelName");
     this.saveSettingsButton = document.getElementById("saveSettings");
 
+    this.suppressToastNotifications = document.getElementById(
+      "suppressToastNotifications",
+    );
+
     this.styleGenerations = document.getElementById("style-generations");
     this.contentGenerations = document.getElementById("content-generations");
 
@@ -172,6 +176,7 @@ class PopupManager {
     this.apiKeyField.addEventListener("input", debouncedSave);
     this.modelEndpointField.addEventListener("input", debouncedSave);
     this.modelNameField.addEventListener("input", debouncedSave);
+    this.suppressToastNotifications.addEventListener("change", debouncedSave);
 
     const debouncedSaveText = this.debounce(() => this.saveTextareaContent(), 300);
     this.stylesNotesField.addEventListener("input", () => {
@@ -907,6 +912,7 @@ class PopupManager {
       apiKey: this.apiKeyField.value,
       modelEndpoint: this.modelEndpointField.value,
       modelName: this.modelNameField.value,
+      suppressToastNotifications: this.suppressToastNotifications.checked,
     };
     chrome.storage.local.set({ aipe_settings: settings });
   }
@@ -918,6 +924,8 @@ class PopupManager {
       this.modelEndpointField.value =
         settings.modelEndpoint || "https://api.openai.com/v1/chat/completions";
       this.modelNameField.value = settings.modelName || "gpt-4.1";
+      this.suppressToastNotifications.checked =
+        settings.suppressToastNotifications || false;
     });
   }
 

@@ -24,6 +24,9 @@ class Storage {
     if (!domainData) {
       domainData = { generations: [] };
     }
+    if (!domainData.generations) {
+      domainData.generations = [];
+    }
     const existingIndex = domainData.generations.findIndex(
       (g) => g.id === generationData.id,
     );
@@ -221,7 +224,13 @@ The browser is Chrome, so you can use any css that works in Chrome. These styles
       throw error;
     }
     let responseData = await response.json();
+    
     let css = responseData.choices[0].message.content;
+
+    if (typeof css !== 'string') {
+        console.error("API response content is not a string:", responseData);
+        throw new Error("API response content is not a string.");
+    }
 
     if (css.startsWith("```css\n")) {
       css = css.replace(
@@ -295,8 +304,11 @@ The browser is Chrome, so you can use any css that works in Chrome. These styles
 class PageModifier {
   constructor() {
     this.selectedElements = new Set();
+    this.settings = {};
+    this.loadSettings();
     this.initToast();
     this.initElementSelector();
+    this.listenForSettingsChanges();
   }
 
   initToast() {
@@ -347,7 +359,23 @@ class PageModifier {
     this.toastContainer = container;
   }
 
+  listenForSettingsChanges() {
+    chrome.storage.onChanged.addListener((changes, namespace) => {
+      if (changes.aipe_settings) {
+        this.settings = changes.aipe_settings.newValue || {};
+      }
+    });
+  }
+
+  async loadSettings() {
+    const result = await Storage.get("aipe_settings");
+    this.settings = result || {};
+  }
+
   showToast(message, duration = 2000) {
+    if (this.settings.suppressToastNotifications) {
+      return;
+    }
     const toast = document.createElement("div");
     toast.className = "AIPE_toast";
     toast.textContent = "🪄 " + message;
@@ -360,6 +388,9 @@ class PageModifier {
   }
 
   showAndReturnPersistentToast(message) {
+    if (this.settings.suppressToastNotifications) {
+      return null;
+    }
     const toast = document.createElement("div");
     toast.className = "AIPE_toast";
     toast.textContent = "🪄 " + message;
@@ -1018,7 +1049,7 @@ async function processUserNoteWrapper(
     } else {
       console.error("Error generating styles:", e);
       pageModifier.showToast(
-        "Network error or invalid request. Please try again.",
+        e.message || "Network error or invalid request. Please try again.",
         5000,
       );
     }
@@ -1150,6 +1181,20 @@ const MAX_CONCURRENT_REQUESTS = 10;
 let persistentToast = null;
 
 function updateToast() {
+  if (pageModifier.settings.suppressToastNotifications) {
+    if (persistentToast) {
+      pageModifier.removeToast(persistentToast);
+      persistentToast = null;
+    }
+    if (elementQueue.length === 0 && activeRequests === 0) {
+        if (totalProcessed > 0) {
+            totalQueued = 0;
+            totalProcessed = 0;
+        }
+        chrome.runtime.sendMessage({ action: "hideContentSpinner" });
+    }
+    return;
+  }
   if (elementQueue.length === 0 && activeRequests === 0) {
     if (persistentToast) {
       pageModifier.removeToast(persistentToast);
