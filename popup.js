@@ -214,7 +214,7 @@ class PopupManager {
       async (message, sender, sendResponse) => {
         if (message.action === "updatePopup") {
           this.styleGenerations.innerHTML = "";
-          this.loadGenerations();
+          await this.loadGenerations();
           if (this.clearStylesNoteOnNextUpdate) {
             this.stylesNotesField.value = "";
             const storageKey = "textareaContent";
@@ -390,7 +390,6 @@ class PopupManager {
     const tabs = await this.getActiveTabs();
     const url = new URL(tabs[0].url);
     const domain = url.hostname;
-    this.styleGenerations.innerHTML = "";
 
     const result = await new Promise((resolve) =>
       chrome.storage.local.get(["global_styles", domain], resolve),
