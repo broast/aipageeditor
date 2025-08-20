@@ -19,33 +19,38 @@ class Storage {
     });
   }
 
-  static async addGeneration(domain, generationData) {
-    let domainData = await this.get(domain);
-    if (!domainData) {
-      domainData = { generations: [] };
-    }
-    if (!domainData.generations) {
-      domainData.generations = [];
-    }
-    const existingIndex = domainData.generations.findIndex(
-      (g) => g.id === generationData.id,
-    );
-    if (existingIndex !== -1) {
-      const existingGeneration = domainData.generations[existingIndex];
-      if (!generationData.history) {
-        generationData.history = [];
-      }
-      const previousHistory = existingGeneration.history || [];
-      const historyItem = { ...existingGeneration };
-      delete historyItem.history;
+  static addGeneration(domain, generationData) {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(domain, (result) => {
+        let domainData = result[domain];
+        if (!domainData) {
+          domainData = { generations: [] };
+        }
+        if (!domainData.generations) {
+          domainData.generations = [];
+        }
+        const existingIndex = domainData.generations.findIndex(
+          (g) => g.id === generationData.id,
+        );
+        if (existingIndex !== -1) {
+          const existingGeneration = domainData.generations[existingIndex];
+          if (!generationData.history) {
+            generationData.history = [];
+          }
+          const previousHistory = existingGeneration.history || [];
+          const historyItem = { ...existingGeneration };
+          delete historyItem.history;
 
-      generationData.history = [...previousHistory, historyItem];
-      domainData.generations[existingIndex] = generationData;
-    } else {
-      domainData.generations.push(generationData);
-    }
-    console.log('Saving generation for domain:', domain, domainData);
-    return this.set(domain, domainData);
+          generationData.history = [...previousHistory, historyItem];
+          domainData.generations[existingIndex] = generationData;
+        } else {
+          domainData.generations.push(generationData);
+        }
+        chrome.storage.local.set({ [domain]: domainData }, () => {
+          resolve();
+        });
+      });
+    });
   }
 
   static async removeGeneration(domain, generationId) {

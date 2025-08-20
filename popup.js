@@ -210,7 +210,7 @@ class PopupManager {
         }
       });
 
-    chrome.runtime.onMessage.addListener(
+            chrome.runtime.onMessage.addListener(
       async (message, sender, sendResponse) => {
         if (message.action === "updatePopup") {
           this.styleGenerations.innerHTML = "";
