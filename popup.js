@@ -6,6 +6,7 @@ class PopupManager {
 
     this.contentNotesField = document.getElementById("contentGenerationNote");
     this.contentSaveButton = document.getElementById("saveContent");
+    this.contentClearButton = document.getElementById("clearContent");
 
     this.contentLoadingIndicator = document.getElementById(
       "contentLoadingIndicator",
@@ -149,6 +150,9 @@ class PopupManager {
     this.stylesSaveButton.addEventListener("click", () => this.saveNote());
     this.stylesClearButton.addEventListener("click", () => this.clearAll());
     this.contentSaveButton.addEventListener("click", () => this.saveContent());
+    this.contentClearButton.addEventListener("click", () =>
+      this.clearContentGenerations(),
+    );
 
     this.addElementToContextButton.addEventListener("click", () =>
       this.addElementToContext(),
@@ -370,6 +374,18 @@ class PopupManager {
     });
 
     chrome.tabs.sendMessage(tabs[0].id, { action: "runClearAndReapply" });
+  }
+
+  async clearContentGenerations() {
+    this.contentNotesField.value = "";
+    const tabs = await this.getActiveTabs();
+    const url = new URL(tabs[0].url);
+    const domain = url.hostname;
+    chrome.storage.local.remove(domain + "_content");
+    this.contentGenerations.innerHTML = "";
+    chrome.tabs.sendMessage(tabs[0].id, {
+      action: "runClearContentGenerations",
+    });
   }
 
   async addElementToContext() {

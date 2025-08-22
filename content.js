@@ -1117,6 +1117,8 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     toggleContentGeneration(message.generationId, message.visible);
   } else if (message.action === "removeContentGeneration") {
     removeContentGeneration(message.generationId);
+  } else if (message.action === "runClearContentGenerations") {
+    clearContentGenerations();
   }
 });
 
@@ -1174,6 +1176,31 @@ async function removeContentGeneration(generationId) {
       }
     } else {
         element.removeAttribute("data-vk-processed");
+    }
+  });
+}
+
+async function clearContentGenerations() {
+  generationObservers.forEach((observer) => observer.disconnect());
+  generationObservers.clear();
+  activeContentGenerations = [];
+  await contentGenCache.clear();
+
+  const elements = document.querySelectorAll("[data-vk-generation-id]");
+  elements.forEach((element) => {
+    const originalHtml = element.getAttribute("data-vk-original-html");
+    if (originalHtml) {
+      const tempDiv = document.createElement("div");
+      tempDiv.innerHTML = originalHtml;
+      const newElement = tempDiv.firstElementChild;
+      if (newElement) {
+        newElement.removeAttribute("data-vk-processed");
+        element.parentNode.replaceChild(newElement, element);
+      } else {
+        element.outerHTML = originalHtml;
+      }
+    } else {
+      element.removeAttribute("data-vk-processed");
     }
   });
 }
