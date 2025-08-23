@@ -19,38 +19,33 @@ class Storage {
     });
   }
 
-  static addGeneration(domain, generationData) {
-    return new Promise((resolve) => {
-      chrome.storage.local.get(domain, (result) => {
-        let domainData = result[domain];
-        if (!domainData) {
-          domainData = { generations: [] };
-        }
-        if (!domainData.generations) {
-          domainData.generations = [];
-        }
-        const existingIndex = domainData.generations.findIndex(
-          (g) => g.id === generationData.id,
-        );
-        if (existingIndex !== -1) {
-          const existingGeneration = domainData.generations[existingIndex];
-          if (!generationData.history) {
-            generationData.history = [];
-          }
-          const previousHistory = existingGeneration.history || [];
-          const historyItem = { ...existingGeneration };
-          delete historyItem.history;
+  static async addGeneration(domain, generationData) {
+    let domainData = await this.get(domain);
+    if (!domainData) {
+      domainData = { generations: [] };
+    }
+    if (!domainData.generations) {
+      domainData.generations = [];
+    }
+    const existingIndex = domainData.generations.findIndex(
+      (g) => g.id === generationData.id,
+    );
+    if (existingIndex !== -1) {
+      const existingGeneration = domainData.generations[existingIndex];
+      if (!generationData.history) {
+        generationData.history = [];
+      }
+      const previousHistory = existingGeneration.history || [];
+      const historyItem = { ...existingGeneration };
+      delete historyItem.history;
 
-          generationData.history = [...previousHistory, historyItem];
-          domainData.generations[existingIndex] = generationData;
-        } else {
-          domainData.generations.push(generationData);
-        }
-        chrome.storage.local.set({ [domain]: domainData }, () => {
-          resolve();
-        });
-      });
-    });
+      generationData.history = [...previousHistory, historyItem];
+      domainData.generations[existingIndex] = generationData;
+    } else {
+      domainData.generations.push(generationData);
+    }
+    await this.set(domain, domainData);
+    return domainData;
   }
 
   static async removeGeneration(domain, generationId) {
@@ -1008,18 +1003,19 @@ async function processUserNoteWrapper(
         generationData.visible = true;
       }
 
-      await Storage.addGeneration(domain, generationData);
+      const domainData = await Storage.addGeneration(domain, generationData);
+
+      chrome.runtime.sendMessage({
+        action: "updatePopup",
+        domain: domain,
+        data: domainData,
+      });
 
       if (generationData.visible !== false) {
         pageModifier.applyCssRulesToPage(css, generationId);
       }
 
       pageModifier.showToast("Styles applied to page!", 3000);
-      chrome.runtime.sendMessage({
-        action: "updatePopup",
-        domain: domain,
-        data: generationData,
-      });
     }
   } catch (e) {
     if (e.response) {

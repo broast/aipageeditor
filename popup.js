@@ -225,10 +225,10 @@ class PopupManager {
           if (this.clearStylesNoteOnNextUpdate) {
             this.stylesNotesField.value = "";
             const storageKey = "textareaContent";
-            chrome.storage.local.get(storageKey, result => {
-                let content = result[storageKey] || {};
-                delete content.styles;
-                chrome.storage.local.set({ [storageKey]: content });
+            chrome.storage.local.get(storageKey, (result) => {
+              let content = result[storageKey] || {};
+              delete content.styles;
+              chrome.storage.local.set({ [storageKey]: content });
             });
             this.clearStylesNoteOnNextUpdate = false;
           }
@@ -241,10 +241,10 @@ class PopupManager {
           if (this.clearContentNoteOnNextUpdate) {
             this.contentNotesField.value = "";
             const storageKey = "textareaContent";
-            chrome.storage.local.get(storageKey, result => {
-                let content = result[storageKey] || {};
-                delete content.content;
-                chrome.storage.local.set({ [storageKey]: content });
+            chrome.storage.local.get(storageKey, (result) => {
+              let content = result[storageKey] || {};
+              delete content.content;
+              chrome.storage.local.set({ [storageKey]: content });
             });
             this.clearContentNoteOnNextUpdate = false;
           }
