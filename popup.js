@@ -195,7 +195,10 @@ class PopupManager {
         this.updateSaveButtonState();
         debouncedSaveText();
     });
-    this.contentNotesField.addEventListener("input", debouncedSaveText);
+    this.contentNotesField.addEventListener("input", () => {
+        this.updateSaveButtonState();
+        debouncedSaveText();
+    });
 
     this.updateSaveButtonState();
 
@@ -298,6 +301,8 @@ class PopupManager {
 
   updateSaveButtonState() {
     this.stylesSaveButton.disabled = this.stylesNotesField.value.trim() === "";
+    this.contentSaveButton.disabled =
+      this.contentNotesField.value.trim() === "";
   }
 
   async saveContent() {
