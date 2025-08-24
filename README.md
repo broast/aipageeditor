@@ -28,4 +28,6 @@ A browser extension for editing live web pages in the browser with AI-generated 
 6. Configure a model endpoint and API key in the settings.
 7. Start generating styles and content for web pages.
 
-# Examples
+## Examples
+
+## Options
