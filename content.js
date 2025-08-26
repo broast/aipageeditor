@@ -113,7 +113,9 @@ class OpenAI {
     const userContent = [
       {
         type: "text",
-        text: `These are the users notes for this website: ${note}\n\n${selectedElementsPrompt}\nHere is the outer html of the element to be rewritten: ${outerHtml}\n\nAs a reminder, the users notes are: ${note}. Please return HTML that will replace the html of the element to match the users notes.. do not confuse the words in the users notes for class names or tags, the user does not know about those and can not see those!! The user only provides visual changes to the user experience. \n\nNote: Please Do Not change anything the user does not ask you to change.... you will be rewarded as always for high quality work only. Thank you!!! (You have currently earned 7,830 rewards and are on a 23 day streak) `,
+        text: `These are the users notes for this website: ${note}\n\n${selectedElementsPrompt}\nHere is the outer html of the element to be rewritten: ${outerHtml}\n\nAs a reminder, the users notes are: ${note}. Please return HTML that will replace the html of the element to match the users notes.. do not confuse the words in the users notes for class names or tags, the user does not know about those and can not see those!! The user only provides visual changes to the user experience. 
+
+Note: Please Do Not change anything the user does not ask you to change.... you will be rewarded as always for high quality work only. Thank you!!! (You have currently earned 7,830 rewards and are on a 23 day streak) `,
       },
     ];
 
@@ -177,7 +179,9 @@ You will be given the outer html of the page. Please return custom html to be ap
     const userContent = [
       {
         type: "text",
-        text: `These are the users notes for this website: ${note}\n\n${selectedElementsPrompt}\nHere is the html structure of the page: ${htmlStructure}\n\nAs a reminder, the users notes are: ${note}. Please return CSS that will modify the page to match the users notes.. do not confuse the words in the users notes for class names or tags, the user does not know about those and can not see those!! The user only provides visual changes to the user experience. \n\nNote: Please Do Not change anything the user does not ask you to change.... you will be rewarded as always for high quality work only. Thank you!!! (You have currently earned 7,830 rewards and are on a 23 day streak) `,
+        text: `These are the users notes for this website: ${note}\n\n${selectedElementsPrompt}\nHere is the html structure of the page: ${htmlStructure}\n\nAs a reminder, the users notes are: ${note}. Please return CSS that will modify the page to match the users notes.. do not confuse the words in the users notes for class names or tags, the user does not know about those and can not see those!! The user only provides visual changes to the user experience. 
+
+Note: Please Do Not change anything the user does not ask you to change.... you will be rewarded as always for high quality work only. Thank you!!! (You have currently earned 7,830 rewards and are on a 23 day streak) `,
       },
     ];
 
@@ -215,7 +219,7 @@ The browser is Chrome, so you can use any css that works in Chrome. These styles
         role: "user",
         content: userContent,
       },
-    ]
+    ] 
 
     const requestInfo = {
       method: "POST",
@@ -252,7 +256,7 @@ The browser is Chrome, so you can use any css that works in Chrome. These styles
     return { css: css, response: responseData };
   }
 
-  async generateSelector(note, outerHtml, selectedElements) {
+  async generateSelector(note, outerHtml, selectedElements, conversationHistory = []) {
     const selectedElementsPrompt = selectedElements
       ? `The user has selected the following elements html to include in the context: ${selectedElements}`
       : "";
@@ -260,7 +264,9 @@ The browser is Chrome, so you can use any css that works in Chrome. These styles
     const userContent = [
       {
         type: "text",
-        text: `These are the users notes for this website: ${note}\n\n${selectedElementsPrompt}\nHere is the outer html of the element to be rewritten: ${outerHtml}\n\nAs a reminder, the users notes are: ${note}. Please return a querySelectorAll compatible selector that will select the elements to be changed. do not confuse the words in the users notes for class names or tags, the user does not know about those and can not see those!!! The user only provides visual changes to the user experience. The elements gathered from this selector will be processed by a subsequent AI step. Do not try to use selector rules like has-text as it is generally up to the AI to determine the contents or meaning of the selected elements. For example, if the user wants to rewrite any comments that mention something related to a specific topic, do not ever use has-text looking for that topic - just give the selector for ALL comments, and the AI will process in the next step. \n\nNote: Please Do Not change anything the user does not ask you to change.... you will be rewarded as always for high quality work only. Thank you!!! (You have currently earned 7,830 rewards and are on a 23 day streak) `,
+        text: `These are the users notes for this website: ${note}\n\n${selectedElementsPrompt}\nHere is the outer html of the element to be rewritten: ${outerHtml}\n\nAs a reminder, the users notes are: ${note}. Please return a querySelectorAll compatible selector that will select the elements to be changed. do not confuse the words in the users notes for class names or tags, the user does not know about those and can not see those!! The user only provides visual changes to the user experience. The elements gathered from this selector will be processed by a subsequent AI step. Do not try to use selector rules like has-text as it is generally up to the AI to determine the contents or meaning of the selected elements. For example, if the user wants to rewrite any comments that mention something related to a specific topic, do not ever use has-text looking for that topic - just give the selector for ALL comments, and the AI will process in the next step. 
+
+Note: Please Do Not change anything the user does not ask you to change.... you will be rewarded as always for high quality work only. Thank you!!! (You have currently earned 7,830 rewards and are on a 23 day streak) `,
       },
     ];
 
@@ -271,21 +277,26 @@ The browser is Chrome, so you can use any css that works in Chrome. These styles
       headers["Authorization"] = `Bearer ${this.apiKey}`;
     }
 
+    const messages = [
+      {
+        role: "system",
+        content: `You are a html css selector bot. You use the notes provided by the user to help determine what elements to select on the page which we may need to modify based on the instructions in those notes.
+You will be given the outer html of the page and some relevant elements. Please return a css selector which will help identify the elements that need to be modified per the users instructions. Only respond with the selector, as your responses are being processed by a machine.
+The browser is Chrome, so you can use any selector that works in Chrome. Please don't rely on unique id's that may change, as your selector will be queried on every page load under this domain.`,
+      },
+      ...conversationHistory,
+      {
+        role: "user",
+        content: userContent,
+      },
+    ];
+
     const requestInfo = {
       method: "POST",
       headers: headers,
       body: JSON.stringify({
         model: this.modelName,
-        messages: [
-          {
-            role: "system",
-            content: `You are a html css selector bot. You use the notes provided by the user to help determine what elements to select on the page which we may need to modify based on the instructions in those notes.\nYou will be given the outer html of the page and some relevant elements. Please return a css selector which will help identify the elements that need to be modified per the users instructions. Only respond with the selector, as your responses are being processed by a machine.\nThe browser is Chrome, so you can use any selector that works in Chrome. Please don't rely on unique id's that may change, as your selector will be queried on every page load under this domain.`,
-          },
-          {
-            role: "user",
-            content: userContent,
-          },
-        ],
+        messages: messages,
       }),
     };
 
@@ -1046,11 +1057,13 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
       modelEndpoint,
       modelName,
       selectedElements,
+      includeChangeHistory,
+      includeGlobalChangeHistory,
     } = message;
 
     const settings = { apiKey, modelEndpoint, modelName };
     const generation = { note, id: id || crypto.randomUUID(), visible, selectedElements };
-    await scanAndProcessElements(generation, settings);
+    await scanAndProcessElements(generation, settings, includeChangeHistory, includeGlobalChangeHistory);
   } else if (message.action === "toggleContentGeneration") {
     toggleContentGeneration(message.generationId, message.visible);
   } else if (message.action === "removeContentGeneration") {
@@ -1252,7 +1265,7 @@ function updateToast() {
     }
     if (totalProcessed > 0) {
       pageModifier.showToast(
-        `Content generation complete. Processed ${totalProcessed} elements.`,
+        `Content generation complete. Processed ${totalProcessed} elements.`, 
       );
       totalQueued = 0;
       totalProcessed = 0;
@@ -1368,7 +1381,7 @@ function enqueueElement(element, generation, openAI) {
   processQueue();
 }
 
-async function scanAndProcessElements(generation, settings) {
+async function scanAndProcessElements(generation, settings, includeChangeHistory, includeGlobalChangeHistory) {
   if (!settings.modelEndpoint) {
     pageModifier.showToast(
       "Model endpoint is missing. Please configure it in settings.",
@@ -1394,10 +1407,16 @@ async function scanAndProcessElements(generation, settings) {
 
   // --- New Element Logic ---
   if (!generation.selectors) {
+    const conversationHistory = await buildConversationHistory(
+      new URL(window.location.href).hostname,
+      includeChangeHistory,
+      includeGlobalChangeHistory,
+    );
     const { selector } = await openAI.generateSelector(
       generation.note,
       document.body.outerHTML,
       generation.selectedElements,
+      conversationHistory,
     );
     generation.selectors = [selector];
     let url = new URL(window.location.href);
@@ -1449,7 +1468,7 @@ async function initializeContentGeneration() {
     activeContentGenerations = domainData.generations;
     for (const generation of activeContentGenerations) {
       if (generation.visible === false) continue;
-      await scanAndProcessElements(generation, settings);
+      await scanAndProcessElements(generation, settings, false, false);
     }
   }
 }

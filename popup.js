@@ -323,6 +323,8 @@ class PopupManager {
       apiKey: settings.apiKey,
       modelEndpoint: settings.modelEndpoint,
       modelName: settings.modelName,
+      includeChangeHistory: this.includeChangeHistory.checked,
+      includeGlobalChangeHistory: this.includeGlobalChangeHistory.checked,
     });
   }
 
@@ -840,6 +842,8 @@ class PopupManager {
         modelName: settings.modelName,
         selectors: generationData.selectors,
         selectedElements: generationData.selectedElements,
+        includeChangeHistory: this.includeChangeHistory.checked,
+        includeGlobalChangeHistory: this.includeGlobalChangeHistory.checked,
       });
     });
 
