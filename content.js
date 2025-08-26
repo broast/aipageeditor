@@ -156,7 +156,7 @@ class OpenAI {
     } else {
       responseData = responseData.choices[0].message.content;
     }
-    return { html: responseData, requestBody: requestInfo.body };
+    return { html: responseData };
   }
 
   async generateCss(
@@ -229,12 +229,12 @@ The browser is Chrome, so you can use any css that works in Chrome. These styles
       throw error;
     }
     let responseData = await response.json();
-    
+
     let css = responseData.choices[0].message.content;
 
     if (typeof css !== 'string') {
-        console.error("API response content is not a string:", responseData);
-        throw new Error("API response content is not a string.");
+      console.error("API response content is not a string:", responseData);
+      throw new Error("API response content is not a string.");
     }
 
     if (css.startsWith("```css\n")) {
@@ -243,9 +243,9 @@ The browser is Chrome, so you can use any css that works in Chrome. These styles
         "",
       );
       css = css.replace("```", "");
-    } 
-    
-    return { css: css, requestBody: requestInfo.body, response: responseData };
+    }
+
+    return { css: css, response: responseData };
   }
 
   async generateSelector(note, outerHtml, selectedElements) {
@@ -302,7 +302,7 @@ The browser is Chrome, so you can use any css that works in Chrome. These styles
     } else {
       responseData = responseData.choices[0].message.content;
     }
-    return { selector: responseData, requestBody: requestInfo.body };
+    return { selector: responseData };
   }
 }
 
@@ -781,21 +781,21 @@ class PageModifier {
 
     // Body
     const applyToBody = () => {
-        let existingStyleBody = document.getElementById("AIPE_style_body_" + id);
-        if (existingStyleBody) {
-            existingStyleBody.innerHTML = cssRules;
-        } else {
-            let styleBody = document.createElement("style");
-            styleBody.id = "AIPE_style_body_" + id;
-            styleBody.innerHTML = cssRules;
-            document.body.appendChild(styleBody);
-        }
+      let existingStyleBody = document.getElementById("AIPE_style_body_" + id);
+      if (existingStyleBody) {
+        existingStyleBody.innerHTML = cssRules;
+      } else {
+        let styleBody = document.createElement("style");
+        styleBody.id = "AIPE_style_body_" + id;
+        styleBody.innerHTML = cssRules;
+        document.body.appendChild(styleBody);
+      }
     }
 
     if (document.body) {
-        applyToBody();
+      applyToBody();
     } else {
-        document.addEventListener("DOMContentLoaded", applyToBody);
+      document.addEventListener("DOMContentLoaded", applyToBody);
     }
   }
 
@@ -903,77 +903,11 @@ async function processUserNoteWrapper(
         }
       }
 
-      let conversationHistory = [];
-      if (includeChangeHistory) {
-        let allGenerations = [];
-        if (includeGlobalChangeHistory) {
-          const allData = await Storage.get(null);
-          for (const key in allData) {
-            if (
-              allData[key] &&
-              Array.isArray(allData[key].generations) &&
-              !key.endsWith("_content") &&
-              key !== "global_styles"
-            ) {
-              allGenerations = allGenerations.concat(allData[key].generations);
-            }
-          }
-        } else {
-          let domainData = await Storage.get(domain);
-          if (domainData && domainData.generations) {
-            allGenerations = allGenerations.concat(domainData.generations);
-          }
-        }
-
-        // also include global styles
-        let globalData = await Storage.get("global_styles");
-        if (globalData && globalData.generations) {
-            allGenerations = allGenerations.concat(globalData.generations);
-        }
-
-        const allHistoricalGenerations = [];
-
-        allGenerations.forEach((generation) => {
-            // For ALL generations, include the full history.
-            if (generation.history) {
-                allHistoricalGenerations.push(...generation.history);
-            }
-            // And also include the generation itself.
-            allHistoricalGenerations.push(generation);
-        });
-
-
-        allHistoricalGenerations.sort((a, b) => {
-          return new Date(a.timestamp) - new Date(b.timestamp);
-        });
-
-        allHistoricalGenerations.forEach((gen) => {
-          if (gen.requestBody && gen.response) {
-            try {
-                const requestBody = JSON.parse(gen.requestBody);
-                if (requestBody.messages) {
-                    const userMessage = requestBody.messages.find(m => m.role === 'user');
-                    if (userMessage) {
-                        conversationHistory.push({
-                            role: "user",
-                            content: userMessage.content,
-                        });
-                        conversationHistory.push({
-                            role: "assistant",
-                            content: gen.response.choices[0].message.content,
-                        });
-                    }
-                }
-            } catch (e) {
-                console.error("Error parsing generation data", e);
-            }
-          }
-        });
-
-        if(conversationHistory.length > 20) {
-          conversationHistory = conversationHistory.slice(-20); // 10 pairs
-        }
-      }
+      let conversationHistory = await buildConversationHistory(
+        domain, 
+        includeChangeHistory,
+        includeGlobalChangeHistory
+      );
 
       pageModifier.showToast("Generating new styles for this page...", 3000);
 
@@ -984,7 +918,7 @@ async function processUserNoteWrapper(
         })
         .join("\n");
 
-      const { css, requestBody, response } = await openAI.generateCss(
+      const { css, response } = await openAI.generateCss(
         note,
         cleanedHtmlStructure,
         selectedElementsHtml,
@@ -996,7 +930,6 @@ async function processUserNoteWrapper(
       let generationData = {
         note: note,
         styles: css,
-        requestBody: requestBody,
         response: response,
         id: generationId,
         timestamp: new Date().toISOString(),
@@ -1123,6 +1056,86 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
   }
 });
 
+async function buildConversationHistory(
+  domain,
+  includeChangeHistory,
+  includeGlobalChangeHistory
+) {
+  let conversationHistory = [];
+  if (includeChangeHistory) {
+    let allGenerations = [];
+    if (includeGlobalChangeHistory) {
+      const allData = await Storage.get(null);
+          for (const key in allData) {
+            if (
+              allData[key] &&
+              Array.isArray(allData[key].generations) &&
+              key !== "global_styles"
+            ) {
+              allGenerations = allGenerations.concat(allData[key].generations);
+            }
+          }
+        } else {
+          let domainData = await Storage.get(domain);
+          if (domainData && domainData.generations) {
+            allGenerations = allGenerations.concat(domainData.generations);
+          }
+
+          // Also include content generations at "_content" as seen elsewhere in this file
+          let contentData = await Storage.get(domain + "_content");
+          if (contentData && contentData.generations) {
+            allGenerations = allGenerations.concat(contentData.generations);
+          }
+        }
+
+        // also include global styles
+        let globalData = await Storage.get("global_styles");
+        if (globalData && globalData.generations) {
+          allGenerations = allGenerations.concat(globalData.generations);
+        }
+
+        const allHistoricalGenerations = [];
+
+        allGenerations.forEach((generation) => {
+          // For ALL generations, include the full history.
+          if (generation.history) {
+            allHistoricalGenerations.push(...generation.history);
+          }
+          // And also include the generation itself.
+          allHistoricalGenerations.push(generation);
+        });
+
+
+        allHistoricalGenerations.sort((a, b) => {
+          return new Date(a.timestamp) - new Date(b.timestamp);
+        });
+
+        allHistoricalGenerations.forEach((gen) => {
+          if (gen.note && gen.response) {
+            try {
+              let userMessage = gen.note
+              conversationHistory.push({
+                role: "user",
+                content: userMessage,
+              });
+              conversationHistory.push({
+                role: "assistant",
+                content: gen.response.choices[0].message.content,
+              });
+            } catch (e) {
+              console.error("Error parsing generation data", e);
+            }
+          }
+        });
+
+        if (conversationHistory.length > 20) {
+          conversationHistory = conversationHistory.slice(-20); // 10 pairs
+        }
+      }
+
+  return conversationHistory;
+}
+
 async function toggleContentGeneration(generationId, visible) {
   const elements = document.querySelectorAll(
     `[data-vk-generation-id="${generationId}"]`,
@@ -1176,7 +1189,7 @@ async function removeContentGeneration(generationId) {
         element.outerHTML = originalHtml;
       }
     } else {
-        element.removeAttribute("data-vk-processed");
+      element.removeAttribute("data-vk-processed");
     }
   });
 }
@@ -1220,11 +1233,11 @@ function updateToast() {
       persistentToast = null;
     }
     if (elementQueue.length === 0 && activeRequests === 0) {
-        if (totalProcessed > 0) {
-            totalQueued = 0;
-            totalProcessed = 0;
-        }
-        chrome.runtime.sendMessage({ action: "hideContentSpinner" });
+      if (totalProcessed > 0) {
+        totalQueued = 0;
+        totalProcessed = 0;
+      }
+      chrome.runtime.sendMessage({ action: "hideContentSpinner" });
     }
     return;
   }
@@ -1235,7 +1248,7 @@ function updateToast() {
     }
     if (totalProcessed > 0) {
       pageModifier.showToast(
-        `Content generation complete. Processed ${totalProcessed} elements.`, 
+        `Content generation complete. Processed ${totalProcessed} elements.`,
       );
       totalQueued = 0;
       totalProcessed = 0;
@@ -1359,8 +1372,8 @@ async function scanAndProcessElements(generation, settings) {
   // Find elements from a previous run of THIS generation and re-queue them.
   const elementsToReprocess = document.querySelectorAll(`[data-vk-generation-id="${generation.id}"]`);
   elementsToReprocess.forEach(element => {
-      element.removeAttribute('data-vk-processed');
-      enqueueElement(element, generation, openAI);
+    element.removeAttribute('data-vk-processed');
+    enqueueElement(element, generation, openAI);
   });
 
   // --- New Element Logic ---
