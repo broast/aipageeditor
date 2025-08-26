@@ -67,21 +67,24 @@ class Storage {
     if (!data.generations) {
       data.generations = [];
     }
-    let existingGeneration = null;
-    if (generationData.id) {
-      existingGeneration = data.generations.find(
-        (g) => g.id === generationData.id,
-      );
-      data.generations = data.generations.filter(
-        (g) => g.id !== generationData.id,
-      );
-    }
+    const existingIndex = data.generations.findIndex(
+      (g) => g.id === generationData.id,
+    );
 
-    if (existingGeneration && generationData.visible === undefined) {
-      generationData.visible = existingGeneration.visible;
-    }
+    if (existingIndex !== -1) {
+      const existingGeneration = data.generations[existingIndex];
+      if (!generationData.history) {
+        generationData.history = [];
+      }
+      const previousHistory = existingGeneration.history || [];
+      const historyItem = { ...existingGeneration };
+      delete historyItem.history;
 
-    data.generations.push(generationData);
+      generationData.history = [...previousHistory, historyItem];
+      data.generations[existingIndex] = generationData;
+    } else {
+      data.generations.push(generationData);
+    }
     return this.set(key, data);
   }
 
@@ -129,7 +132,8 @@ class OpenAI {
         messages: [
           {
             role: "system",
-            content: `You are a web browser html bot. You use the notes provided by the user to help alter the html of an element on the page based on those instructions in those notes.\nYou will be given the outer html of the page. Please return custom html to be applied to the page, which will be injected into the page.\n\nFor example, if the command is make all text bigger, your response could be:\n<h1 style=\"font-size: 20px;\">All text is bigger</h1>\n\nDo not respond with any other text. Only respond with the html, as your responses are being processed by a machine.\nThe browser is Chrome, so you can use any html that works in Chrome.\n`,
+            content: `You are a web browser html bot. You use the notes provided by the user to help alter the html of an element on the page based on those instructions in those notes.
+You will be given the outer html of the page. Please return custom html to be applied to the page, which will be injected into the page.\n\nFor example, if the command is make all text bigger, your response could be:\n<h1 style=\"font-size: 20px;\">All text is bigger</h1>\n\nDo not respond with any other text. Only respond with the html, as your responses are being processed by a machine.\nThe browser is Chrome, so you can use any html that works in Chrome.\n`,
           },
           {
             role: "user",
@@ -146,17 +150,17 @@ class OpenAI {
       throw error;
     }
     let responseData = await response.json();
+    let html = responseData.choices[0].message.content;
 
-    if (responseData.choices[0].message.content.startsWith("```html\n")) {
-      responseData = responseData.choices[0].message.content.replace(
+    if (html.startsWith("```html\n")) {
+      html = html.replace(
         "```html\n",
         "",
       );
-      responseData = responseData.replace("```", "");
-    } else {
-      responseData = responseData.choices[0].message.content;
+      html = html.replace("```", "");
     }
-    return { html: responseData };
+    
+    return { html: html, response: responseData };
   }
 
   async generateCss(
@@ -1284,6 +1288,7 @@ async function _processElement(element, generation, openAI) {
     });
 
     let html;
+    let response;
     if (await contentGenCache.has(cacheKey)) {
       html = await contentGenCache.get(cacheKey);
     } else {
@@ -1293,8 +1298,19 @@ async function _processElement(element, generation, openAI) {
         generation.selectedElements,
       );
       html = result.html;
+      response = result.response;
       await contentGenCache.set(cacheKey, html);
     }
+
+    const url = new URL(window.location.href);
+    const domain = url.hostname;
+    const generationData = {
+      ...generation,
+      response: response,
+      timestamp: new Date().toISOString(),
+    };
+    await Storage.addContentGeneration(domain, generationData);
+
 
     const tempDiv = document.createElement("div");
     tempDiv.innerHTML = html;
