@@ -391,6 +391,18 @@ class PageModifier {
     chrome.storage.onChanged.addListener((changes, namespace) => {
       if (changes.aipe_settings) {
         this.settings = changes.aipe_settings.newValue || {};
+        if (this.settings.maxConcurrentRequests !== undefined) {
+          const max = parseInt(this.settings.maxConcurrentRequests, 10);
+          if (max === 0) {
+            MAX_CONCURRENT_REQUESTS = Infinity;
+          } else if (max > 0) {
+            MAX_CONCURRENT_REQUESTS = max;
+          } else {
+            MAX_CONCURRENT_REQUESTS = 10;
+          }
+        } else {
+          MAX_CONCURRENT_REQUESTS = 10;
+        }
       }
     });
   }
@@ -398,6 +410,18 @@ class PageModifier {
   async loadSettings() {
     const result = await Storage.get("aipe_settings");
     this.settings = result || {};
+    if (this.settings.maxConcurrentRequests !== undefined) {
+      const max = parseInt(this.settings.maxConcurrentRequests, 10);
+      if (max === 0) {
+        MAX_CONCURRENT_REQUESTS = Infinity;
+      } else if (max > 0) {
+        MAX_CONCURRENT_REQUESTS = max;
+      } else {
+        MAX_CONCURRENT_REQUESTS = 10;
+      }
+    } else {
+      MAX_CONCURRENT_REQUESTS = 10;
+    }
   }
 
   showToast(message, duration = 2000) {
@@ -1260,7 +1284,7 @@ const elementQueue = [];
 let activeRequests = 0;
 let totalQueued = 0;
 let totalProcessed = 0;
-const MAX_CONCURRENT_REQUESTS = 10;
+let MAX_CONCURRENT_REQUESTS = 10;
 let persistentToast = null;
 
 function updateToast() {

@@ -38,6 +38,9 @@ class PopupManager {
     this.suppressToastNotifications = document.getElementById(
       "suppressToastNotifications",
     );
+    this.maxConcurrentRequests = document.getElementById(
+      "maxConcurrentRequests",
+    );
 
     this.styleGenerations = document.getElementById("style-generations");
     this.contentGenerations = document.getElementById("content-generations");
@@ -189,6 +192,7 @@ class PopupManager {
     this.modelEndpointField.addEventListener("input", debouncedSave);
     this.modelNameField.addEventListener("input", debouncedSave);
     this.suppressToastNotifications.addEventListener("change", debouncedSave);
+    this.maxConcurrentRequests.addEventListener("input", debouncedSave);
 
     const debouncedSaveText = this.debounce(() => this.saveTextareaContent(), 300);
     this.stylesNotesField.addEventListener("input", () => {
@@ -993,6 +997,7 @@ class PopupManager {
       modelEndpoint: this.modelEndpointField.value,
       modelName: this.modelNameField.value,
       suppressToastNotifications: this.suppressToastNotifications.checked,
+      maxConcurrentRequests: this.maxConcurrentRequests.value,
     };
     chrome.storage.local.set({ aipe_settings: settings });
   }
@@ -1006,6 +1011,7 @@ class PopupManager {
       this.modelNameField.value = settings.modelName || "gpt-4.1";
       this.suppressToastNotifications.checked =
         settings.suppressToastNotifications || false;
+      this.maxConcurrentRequests.value = settings.maxConcurrentRequests === undefined ? 10 : settings.maxConcurrentRequests;
     });
   }
 
