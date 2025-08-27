@@ -105,7 +105,12 @@ class OpenAI {
     this.modelName = modelName;
   }
 
-  async generateContent(note, outerHtml, selectedElements) {
+  async generateContent(
+    note,
+    outerHtml,
+    selectedElements,
+    conversationHistory = [],
+  ) {
     const selectedElementsPrompt = selectedElements
       ? `The user has selected the following elements html to include in the context: ${selectedElements}`
       : "";
@@ -126,22 +131,25 @@ Note: Please Do Not change anything the user does not ask you to change.... you 
       headers["Authorization"] = `Bearer ${this.apiKey}`;
     }
 
+    const messages = [
+      {
+        role: "system",
+        content: `You are a web browser html bot. You use the notes provided by the user to help alter the html of an element on the page based on those instructions in those notes.
+You will be given the outer html of the page. Please return custom html to be applied to the page, which will be injected into the page.\n\nFor example, if the command is make all text bigger, your response could be:\n<h1 style=\"font-size: 20px;\">All text is bigger</h1>\n\nDo not respond with any other text. Only respond with the html, as your responses are being processed by a machine.\nThe browser is Chrome, so you can use any html that works in Chrome.\n`,
+      },
+      ...conversationHistory,
+      {
+        role: "user",
+        content: userContent,
+      },
+    ];
+
     const requestInfo = {
       method: "POST",
       headers: headers,
       body: JSON.stringify({
         model: this.modelName,
-        messages: [
-          {
-            role: "system",
-            content: `You are a web browser html bot. You use the notes provided by the user to help alter the html of an element on the page based on those instructions in those notes.
-You will be given the outer html of the page. Please return custom html to be applied to the page, which will be injected into the page.\n\nFor example, if the command is make all text bigger, your response could be:\n<h1 style=\"font-size: 20px;\">All text is bigger</h1>\n\nDo not respond with any other text. Only respond with the html, as your responses are being processed by a machine.\nThe browser is Chrome, so you can use any html that works in Chrome.\n`,
-          },
-          {
-            role: "user",
-            content: userContent,
-          },
-        ],
+        messages: messages,
       }),
     };
 
@@ -1062,8 +1070,20 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     } = message;
 
     const settings = { apiKey, modelEndpoint, modelName };
-    const generation = { note, id: id || crypto.randomUUID(), visible, selectedElements };
-    await scanAndProcessElements(generation, settings, includeChangeHistory, includeGlobalChangeHistory);
+    const generation = {
+      note,
+      id: id || crypto.randomUUID(),
+      visible,
+      selectedElements,
+      includeChangeHistory,
+      includeGlobalChangeHistory,
+    };
+    await scanAndProcessElements(
+      generation,
+      settings,
+      includeChangeHistory,
+      includeGlobalChangeHistory,
+    );
   } else if (message.action === "toggleContentGeneration") {
     toggleContentGeneration(message.generationId, message.visible);
   } else if (message.action === "removeContentGeneration") {
@@ -1282,7 +1302,13 @@ function updateToast() {
   }
 }
 
-async function _processElement(element, generation, openAI) {
+async function _processElement(
+  element,
+  generation,
+  openAI,
+  includeChangeHistory,
+  includeGlobalChangeHistory,
+) {
   try {
     const isProcessed =
       element.dataset.vkProcessed === "true" &&
@@ -1305,10 +1331,16 @@ async function _processElement(element, generation, openAI) {
     if (await contentGenCache.has(cacheKey)) {
       html = await contentGenCache.get(cacheKey);
     } else {
+      const conversationHistory = await buildConversationHistory(
+        new URL(window.location.href).hostname,
+        includeChangeHistory,
+        includeGlobalChangeHistory,
+      );
       const result = await openAI.generateContent(
         generation.note,
         originalHtml,
         generation.selectedElements,
+        conversationHistory,
       );
       html = result.html;
       response = result.response;
@@ -1356,9 +1388,21 @@ async function _processElement(element, generation, openAI) {
 function processQueue() {
   while (activeRequests < MAX_CONCURRENT_REQUESTS && elementQueue.length > 0) {
     activeRequests++;
-    const { element, generation, openAI } = elementQueue.shift();
+    const {
+      element,
+      generation,
+      openAI,
+      includeChangeHistory,
+      includeGlobalChangeHistory,
+    } = elementQueue.shift();
 
-    _processElement(element, generation, openAI).finally(() => {
+    _processElement(
+      element,
+      generation,
+      openAI,
+      includeChangeHistory,
+      includeGlobalChangeHistory,
+    ).finally(() => {
       activeRequests--;
       processQueue();
     });
@@ -1369,13 +1413,25 @@ function processQueue() {
   }
 }
 
-function enqueueElement(element, generation, openAI) {
+function enqueueElement(
+  element,
+  generation,
+  openAI,
+  includeChangeHistory,
+  includeGlobalChangeHistory,
+) {
   if (element.closest('[data-vk-processed="true"]')) {
     return;
   }
   element.setAttribute("data-vk-processed", "true");
 
-  elementQueue.push({ element, generation, openAI });
+  elementQueue.push({
+    element,
+    generation,
+    openAI,
+    includeChangeHistory,
+    includeGlobalChangeHistory,
+  });
   totalQueued++;
   updateToast();
   processQueue();
@@ -1399,10 +1455,18 @@ async function scanAndProcessElements(generation, settings, includeChangeHistory
 
   // --- Reprocessing Logic ---
   // Find elements from a previous run of THIS generation and re-queue them.
-  const elementsToReprocess = document.querySelectorAll(`[data-vk-generation-id="${generation.id}"]`);
-  elementsToReprocess.forEach(element => {
-    element.removeAttribute('data-vk-processed');
-    enqueueElement(element, generation, openAI);
+  const elementsToReprocess = document.querySelectorAll(
+    `[data-vk-generation-id="${generation.id}"]`,
+  );
+  elementsToReprocess.forEach((element) => {
+    element.removeAttribute("data-vk-processed");
+    enqueueElement(
+      element,
+      generation,
+      openAI,
+      includeChangeHistory,
+      includeGlobalChangeHistory,
+    );
   });
 
   // --- New Element Logic ---
@@ -1434,10 +1498,22 @@ async function scanAndProcessElements(generation, settings, includeChangeHistory
         if (node.nodeType === Node.ELEMENT_NODE) {
           generation.selectors.forEach((selector) => {
             if (node.matches(selector)) {
-              enqueueElement(node, generation, openAI);
+              enqueueElement(
+                node,
+                generation,
+                openAI,
+                includeChangeHistory,
+                includeGlobalChangeHistory,
+              );
             }
             node.querySelectorAll(selector).forEach((element) => {
-              enqueueElement(element, generation, openAI);
+              enqueueElement(
+                element,
+                generation,
+                openAI,
+                includeChangeHistory,
+                includeGlobalChangeHistory,
+              );
             });
           });
         }
@@ -1452,7 +1528,13 @@ async function scanAndProcessElements(generation, settings, includeChangeHistory
   // Initial scan for new elements
   generation.selectors.forEach((selector) => {
     document.querySelectorAll(selector).forEach((element) => {
-      enqueueElement(element, generation, openAI);
+      enqueueElement(
+        element,
+        generation,
+        openAI,
+        includeChangeHistory,
+        includeGlobalChangeHistory,
+      );
     });
   });
 }
