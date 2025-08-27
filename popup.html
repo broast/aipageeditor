@@ -5,6 +5,7 @@
     <script src="popup.js" defer></script>
     <meta charset="UTF-8" />
     <link rel="stylesheet" href="https://unpkg.com/98.css" />
+    <link rel="stylesheet" href="dark.css" id="dark-theme" disabled />
     <style>
       #loadingIndicator {
         display: none;
@@ -332,6 +333,13 @@
               <div class="field-row-stacked">
                 <label for="maxConcurrentRequests">Max Concurrent Content Generations (0 for unlimited)</label>
                 <input id="maxConcurrentRequests" type="number" value="10" />
+              </div>
+              <div class="field-row-stacked">
+                <label for="theme-selector">Theme</label>
+                <select id="theme-selector">
+                  <option value="default">98.css by jdan</option>
+                  <option value="dark">Dark by Ape</option>
+                </select>
               </div>
             </div>
         </div>

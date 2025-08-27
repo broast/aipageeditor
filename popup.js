@@ -41,6 +41,7 @@ class PopupManager {
     this.maxConcurrentRequests = document.getElementById(
       "maxConcurrentRequests",
     );
+    this.themeSelector = document.getElementById("theme-selector");
 
     this.styleGenerations = document.getElementById("style-generations");
     this.contentGenerations = document.getElementById("content-generations");
@@ -52,6 +53,7 @@ class PopupManager {
     this.loadGenerations();
     this.loadContentGenerations();
     this.loadSettings();
+    this.loadTheme();
     this.updateTitle();
     this.loadContextSettings();
     this.loadTextareaContent();
@@ -193,6 +195,7 @@ class PopupManager {
     this.modelNameField.addEventListener("input", debouncedSave);
     this.suppressToastNotifications.addEventListener("change", debouncedSave);
     this.maxConcurrentRequests.addEventListener("input", debouncedSave);
+    this.themeSelector.addEventListener("change", () => this.saveTheme());
 
     const debouncedSaveText = this.debounce(() => this.saveTextareaContent(), 300);
     this.stylesNotesField.addEventListener("input", () => {
@@ -1013,6 +1016,30 @@ class PopupManager {
         settings.suppressToastNotifications || false;
       this.maxConcurrentRequests.value = settings.maxConcurrentRequests === undefined ? 10 : settings.maxConcurrentRequests;
     });
+  }
+
+  saveTheme() {
+    const theme = this.themeSelector.value;
+    chrome.storage.local.set({ aipe_theme: theme }, () => {
+      this.applyTheme(theme);
+    });
+  }
+
+  loadTheme() {
+    chrome.storage.local.get(["aipe_theme"], (result) => {
+      const theme = result.aipe_theme || "default";
+      this.themeSelector.value = theme;
+      this.applyTheme(theme);
+    });
+  }
+
+  applyTheme(theme) {
+    const darkStyleSheet = document.getElementById("dark-theme");
+    if (theme === "dark") {
+      darkStyleSheet.disabled = false;
+    } else {
+      darkStyleSheet.disabled = true;
+    }
   }
 
   getSettings() {
