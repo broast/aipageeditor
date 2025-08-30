@@ -1,8 +1,7 @@
-// Hide the page to prevent FOUC
 document.documentElement.style.visibility = 'hidden';
 
 function applyCssEarly(cssRules, id) {
-    const styleId = "AIPE_style_head_" + id;
+    const styleId = "AIPE_style_" + id;
     let style = document.createElement("style");
     style.id = styleId;
     style.innerHTML = cssRules;
@@ -12,29 +11,48 @@ function applyCssEarly(cssRules, id) {
 async function applyAllSavedStyles() {
     try {
         const data = await chrome.storage.local.get(null);
-        const globalGenerations = data.globalStyleGenerations || [];
-        const generations = data.styleGenerations || {};
+        const globalGenerations = data.global_styles.generations || [];
+        // data for domain
         
         const url = window.location.href;
-        const pageGenerations = generations[url] || [];
+        const domain = new URL(url).hostname;
+        const pageGenerations = data[domain].generations || [];
 
         for (const generation of globalGenerations) {
-            if (generation.css) {
-                applyCssEarly(generation.css, generation.id);
+            if (generation.styles && generation.visible) {
+                applyCssEarly(generation.styles, generation.id);
             }
         }
 
         for (const generation of pageGenerations) {
-            if (generation.css) {
-                applyCssEarly(generation.css, generation.id);
+            if (generation.styles && generation.visible) {
+                applyCssEarly(generation.styles, generation.id);
             }
         }
     } catch (error) {
         console.error("AIPE Early Styles Error:", error);
     } finally {
-        // Show the page after styles are applied
         document.documentElement.style.visibility = 'visible';
     }
 }
 
-applyAllSavedStyles();
+const observer = new MutationObserver((mutations, obs) => {
+  for (const mutation of mutations) {
+    if (mutation.type === "childList" && mutation.addedNodes.length > 0) {
+      for (const node of mutation.addedNodes) {
+        if (node.nodeName === 'BODY') {
+          applyAllSavedStyles();
+
+          obs.disconnect();
+
+          return;
+        }
+      }
+    }
+  }
+});
+
+observer.observe(document, {
+  childList: true,
+  subtree: true 
+});

@@ -5,7 +5,6 @@
     <script src="popup.js" defer></script>
     <meta charset="UTF-8" />
     <link rel="stylesheet" href="https://unpkg.com/98.css" />
-    <link rel="stylesheet" href="dark.css" id="dark-theme" disabled />
     <style>
       #loadingIndicator {
         display: none;
@@ -19,12 +18,7 @@
       .style-generation * {
         padding: 5px;
       }
-
-      body > * {
-        font-family: Arial, sans-serif !important;
-        font-weight: bold !important;
-      }
-
+      
       button,
       .style-generation-note,
       #contentGenerationNote,
@@ -167,14 +161,22 @@
         animation: rotate180 0.8s forwards;
         /* 0.8s duration, 'forwards' keeps the end state */
       }
+
+      .scroll-container {
+        max-height: 550px;
+        overflow-y: auto;
+      }
     </style>
+    <link rel="stylesheet" href="dark.css" id="dark-theme" disabled />
+    <link rel="stylesheet" href="light.css" id="light-theme" disabled />
+    <link rel="stylesheet" href="matrix.css" id="matrix-theme" disabled />
   </head>
 
-  <body style="width: 400px; margin: 2px; padding: 2px" class="window">
+  <body style="width: 420px; margin: 2px; padding: 2px; overflow-y: auto" class="window">
     <div class="title-bar">
       <div class="title-bar-text">🎨 AI Page Editor</div>
     </div>
-
+    <div class="window scroll-container">
     <menu role="tablist" id="generation-tabs-list" style="margin-top: 10px">
       <li role="tab" aria-selected="true">
         <a href="#styles-tab">🎨 Styles</a>
@@ -338,12 +340,15 @@
                 <label for="theme-selector">Theme</label>
                 <select id="theme-selector">
                   <option value="default">98.css by jdan</option>
-                  <option value="dark">Dark by Ape</option>
+                  <option value="dark">Dark</option>
+                  <option value="light">Light</option>
+                  <option value="matrix">Matrix</option>
                 </select>
               </div>
             </div>
         </div>
       </div>
     </fieldset>
+    </div>
   </body>
 </html>

@@ -855,6 +855,10 @@ class PageModifier {
 
   async clearAndReApplyAllGenerations() {
     this.clearAllAIPEStylesFromPage();
+    await this.reApplyAllGenerations();
+  }
+
+  async reApplyAllGenerations() {
     let url = new URL(window.location.href);
     let domain = url.hostname;
 
@@ -1579,5 +1583,5 @@ async function initializeContentGeneration() {
   }
 }
 
-pageModifier.clearAndReApplyAllGenerations();
+//pageModifier.reApplyAllGenerations();
 initializeContentGeneration();
