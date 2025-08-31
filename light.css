@@ -1,0 +1,176 @@
+body, html {
+    font-family: 'Poppins', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif !important;
+    background: linear-gradient(120deg,#fff 60%,#e3e7fd 100%) !important;
+    color: #2a3556 !important;
+}
+
+.title-bar, .window, button, input, label, legend, li[role=tab], option, select, table, textarea, ul.tree-view {
+    font-family: 'Poppins', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif !important;
+}
+:disabled+label, button:disabled, input[type=reset]:disabled, input[type=submit]:disabled {
+    text-shadow: none;
+}
+
+legend {
+    background: none;
+}
+
+/* reset WebKit-based browsers (Chrome, Edge, Safari) */
+::-webkit-scrollbar,
+::-webkit-scrollbar-thumb,
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-button,
+::-webkit-scrollbar-corner {
+  all: unset;              /* remove all applied props */
+  display: initial;        /* revert display back to UA default */
+  width: auto !important;  /* revert width back to UA default */
+  /* soft shadow */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+/* ensure scroll containers aren’t forced into styled tracks */
+* {
+  scrollbar-width: auto !important;        /* Firefox: restore default width */
+  scrollbar-color: auto !important;        /* Firefox: restore default colors */
+}
+
+
+
+/* restore native control */
+input[type="checkbox"]{
+  appearance: auto !important;
+  -webkit-appearance: auto !important;
+  -moz-appearance: auto !important;
+  box-shadow: none !important;
+  border: initial !important;
+  background: initial !important;
+  width: auto !important;
+  height: auto !important;
+  position: static !important;   /* in case it was offset */
+  opacity: 1 !important;         /* in case it was visually hidden */
+}
+
+/* kill the faux box and spacing on the label */
+input[type="checkbox"] + label::before,
+input[type="checkbox"] + label::after{
+  content: none !important;
+  display: none !important;
+}
+input[type="checkbox"] + label{
+  padding-left: 0 !important;    /* 98.css often adds left padding for the faux box */
+  margin-left: 0 !important;
+}
+input[type="checkbox"] {
+  vertical-align: middle !important; /* align with text middle */
+  margin: 0 .25em 0 0 !important;    /* small right gap, no weird top margin */
+}
+
+input[type="checkbox"] + label {
+  padding: 0 !important;             /* remove 98.css padding */
+  margin: 0 !important;
+  line-height: normal !important;    /* reset line-height */
+  vertical-align: middle !important;
+}
+
+
+button { 
+    text-shadow: none;
+}
+
+.window, 
+.status-bar-field,
+textarea,
+input,
+button,
+li,
+#advanced-options-content {
+    background: linear-gradient(135deg, #ffe4fa 0%, #e3f6ff 100%) !important;
+    border-radius: 18px !important;
+    box-shadow: 0 8px 28px 0 rgba(76, 89, 182, 0.10), 0 1.5px 4.5px 0 rgba(48,58,117,0.08) !important;
+    border: none !important;
+}
+
+.style-generation-note, .window-body {
+    background: none !important;
+    font-weight: 500 !important;
+    color: #4c4f7a !important;
+}
+
+textarea,
+input[type="text"],
+input[type="number"] {
+    border-radius: 12px !important;
+    border: 1.5px solid #ebeef8 !important;
+    background: rgba(255,255,255,0.92) !important;
+    font-size: 1.1em !important;
+    transition: box-shadow 0.2s;
+    box-shadow: 0px 1.5px 7px 0 rgba(120,138,220,0.06);
+}
+
+textarea:focus,
+input:focus {
+    outline: none !important;
+    box-shadow: 0 0 4px 2px #c9f6ff;
+    border-color: #7cfaf6 !important;
+}
+
+button, .style-generation-action-button, .style-generation-action-button-icon {
+    background: linear-gradient(90deg,#f0e7ff 0%, #c5fcff 100%) !important;
+    color: #2a3556 !important;
+    font-family: 'Poppins', 'Segoe UI', Arial, sans-serif !important;
+    border-radius: 24px !important;
+    font-size: 1.05em !important;
+    transition: background 0.14s, box-shadow 0.14s;
+    border: none !important;
+    box-shadow: 0 2px 14px rgba(146,222,255,0.10);
+    cursor: pointer !important;
+}
+
+button:hover, .style-generation-action-button:hover, .style-generation-action-button-icon:hover {
+    background: linear-gradient(90deg, #caf9ff 0%, #ffffff 100%) !important;
+    box-shadow: 0 3px 16px rgba(130,180,255,0.12);
+}
+
+.action-buttons-container {
+    background: none !important;
+    border-radius: 24px !important;
+    padding: 6px 0 2px 0 !important;
+}
+
+#save, #saveContent {
+    font-weight: 600 !important;
+    letter-spacing: 0.02em;
+    background: linear-gradient(90deg, #f3e6ff 0%, #cbf7ff 100%) !important;
+}
+
+#contentGenerationNote, #notes {
+    border: 1.5px solid #e4e5fa !important;
+    border-radius: 12px !important;
+    background: rgba(255,255,255,0.94) !important;
+}
+
+::-webkit-scrollbar {
+    width: 9px;
+    background: #e9e3f7;
+}
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg,#c7e7ff 0%,#d8cbff 100%);
+    border-radius: 9px;
+}
+
+/* Soft drop shadow for the app window */
+#root > div:first-child, .window, #advanced-options-content {
+    box-shadow: 0 7px 40px 0 rgba(100,113,205,0.16), 0 2px 4px rgba(90,118,138,0.10) !important;
+}
+
+/* Fancy effect for major paddings/dividers */
+#root > div, 
+#advanced-options-content,
+.status-bar-field,
+.window,
+li {
+    box-shadow: 0 3px 20px 0 rgba(83, 116, 233, 0.07);
+}
+
+li[role="tab"] {
+    border-radius: 9px 9px 0 0 !important;
+}
