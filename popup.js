@@ -1042,8 +1042,10 @@ class PopupManager {
         sheet.disabled = (id !== `${theme}-theme`);
       }
     }
+    
+    this.updateAdvancedOptionsMaxHeight();
   }
-  
+
   getSettings() {
     return new Promise((resolve) => {
       chrome.storage.local.get(["aipe_settings"], (result) => {

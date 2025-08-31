@@ -16,16 +16,19 @@ async function applyAllSavedStyles() {
         
         const url = window.location.href;
         const domain = new URL(url).hostname;
-        const pageGenerations = data[domain].generations || [];
+        const domainData = data[domain] || {};
+        const pageGenerations = domainData.generations || [];
 
         for (const generation of globalGenerations) {
-            if (generation.styles && generation.visible) {
+            const globalVisibilityForDomain = domainData.global_visibility || {};
+            const isGlobalStyleVisibleOnPage = globalVisibilityForDomain[generation.id] || true;
+            if (generation.styles && isGlobalStyleVisibleOnPage) {
                 applyCssEarly(generation.styles, generation.id);
             }
         }
 
         for (const generation of pageGenerations) {
-            if (generation.styles && generation.visible) {
+            if (generation.styles && generation.visible == true) {
                 applyCssEarly(generation.styles, generation.id);
             }
         }
