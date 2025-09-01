@@ -1042,8 +1042,9 @@ class PopupManager {
         sheet.disabled = (id !== `${theme}-theme`);
       }
     }
-    
-    this.updateAdvancedOptionsMaxHeight();
+
+    /* a hack since deferring didn't work, nor did the next frame - theoretically we have to detect when the stylesheet changes are done applying. With no network requests, I find 100ms to be reasonable, and also for this to be a low risk item. A workaround is to click a option tab to reset the height the same way. */
+    setTimeout(this.updateAdvancedOptionsMaxHeight.bind(this), 100);
   }
 
   getSettings() {
