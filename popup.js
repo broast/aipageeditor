@@ -691,20 +691,7 @@ class PopupManager {
       regenerateOverrideButton.className = "style-generation-action-button-icon";
       regenerateOverrideButton.addEventListener("click", async () => {
         this.loadingIndicator.style.display = "block";
-        const tabs = await this.getActiveTabs();
-        const url = new URL(tabs[0].url);
-        const domain = url.hostname;
-        const result = await new Promise((resolve) =>
-          chrome.storage.local.get(domain, resolve),
-        );
-        let domainData = result[domain] || {};
-        if (!domainData.global_visibility) {
-          domainData.global_visibility = {};
-        }
-        domainData.global_visibility[generationData.id] = false;
-        await new Promise((resolve) =>
-          chrome.storage.local.set({ [domain]: domainData }, resolve),
-        );
+
         const sendMessage = (screenshotUrl = null) => {
           chrome.tabs.sendMessage(tabs[0].id, {
             action: "runProcessUserNote",
@@ -717,6 +704,7 @@ class PopupManager {
             screenshotUrl: screenshotUrl,
             includeChangeHistory: this.includeChangeHistory.checked,
             includeGlobalChangeHistory: this.includeGlobalChangeHistory.checked,
+            globalStyleToOverride: generationData.id,
           });
         };
         if (this.sendScreenshot.checked) {

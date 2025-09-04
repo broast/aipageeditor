@@ -934,6 +934,7 @@ async function processUserNoteWrapper(
   screenshotUrl = null,
   includeChangeHistory = false,
   includeGlobalChangeHistory = false,
+  globalStyleToOverride = null,
 ) {
   const openAI = new OpenAI(apiKey, modelEndpoint, modelName);
   let url = new URL(window.location.href);
@@ -994,17 +995,25 @@ async function processUserNoteWrapper(
 
       const domainData = await Storage.addGeneration(domain, generationData);
 
+      if (globalStyleToOverride) {
+        let url = new URL(window.location.href);
+        let pageDomain = url.hostname;
+        const result = await Storage.get(pageDomain);
+        let pageDomainData = result || {};
+        if (!pageDomainData.global_visibility) {
+          pageDomainData.global_visibility = {};
+        }
+        pageDomainData.global_visibility[globalStyleToOverride] = false;
+        await Storage.set(pageDomain, pageDomainData);
+      }
+
       chrome.runtime.sendMessage({
         action: "updatePopup",
         domain: domain,
         data: domainData,
       });
 
-      if (generationData.visible !== false) {
-        pageModifier.applyCssRulesToPage(css, generationId);
-      }
-
-      pageModifier.showToast("Styles applied to page!", 3000);
+      await pageModifier.clearAndReApplyAllGenerations();
     }
   } catch (e) {
     if (e.response) {
@@ -1064,6 +1073,7 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
         message.screenshotUrl,
         message.includeChangeHistory,
         message.includeGlobalChangeHistory,
+        message.globalStyleToOverride,
       );
     } catch (e) {
       pageModifier.showToast("Error processing notes", 3000);
