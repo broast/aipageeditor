@@ -20,9 +20,14 @@ async function applyAllSavedStyles() {
         const pageGenerations = domainData.generations || [];
 
         for (const generation of globalGenerations) {
-            const globalVisibilityForDomain = domainData.global_visibility || {};
-            const isGlobalStyleVisibleOnPage = globalVisibilityForDomain[generation.id] || true;
-            if (generation.styles && isGlobalStyleVisibleOnPage) {
+            let isVisible;
+            if (domainData && domainData.global_visibility && domainData.global_visibility[generation.id] !== undefined) {
+                isVisible = domainData.global_visibility[generation.id];
+            } else {
+                isVisible = generation.visible !== false;
+            }
+
+            if (generation.styles && isVisible) {
                 applyCssEarly(generation.styles, generation.id);
             }
         }

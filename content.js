@@ -867,8 +867,7 @@ class PageModifier {
 
     if (globalData && globalData.generations) {
       globalData.generations.forEach((generation) => {
-        let isVisible = generation.visible !== false; // Default visibility
-
+        let isVisible;
         // Check for a domain-specific override
         if (
           domainData &&
@@ -876,6 +875,9 @@ class PageModifier {
           domainData.global_visibility[generation.id] !== undefined
         ) {
           isVisible = domainData.global_visibility[generation.id];
+        } else {
+          // Otherwise, use the global default
+          isVisible = generation.visible !== false;
         }
 
         if (isVisible) {
@@ -1593,5 +1595,5 @@ async function initializeContentGeneration() {
   }
 }
 
-//pageModifier.reApplyAllGenerations();
+pageModifier.reApplyAllGenerations();
 initializeContentGeneration();
