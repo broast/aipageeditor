@@ -118,9 +118,7 @@ class OpenAI {
     const userContent = [
       {
         type: "text",
-        text: `These are the users notes for this website: ${note}\n\n${selectedElementsPrompt}\nHere is the outer html of the element to be rewritten: ${outerHtml}\n\nAs a reminder, the users notes are: ${note}. Please return HTML that will replace the html of the element to match the users notes.. do not confuse the words in the users notes for class names or tags, the user does not know about those and can not see those!! The user only provides visual changes to the user experience. 
-
-Note: Please Do Not change anything the user does not ask you to change.... you will be rewarded as always for high quality work only. Thank you!!! (You have currently earned 7,830 rewards and are on a 23 day streak) `,
+        text: `These are the users notes for this website: ${note}\n\n${selectedElementsPrompt}\nHere is the outer html of the element to be rewritten: ${outerHtml}\n\nAs a reminder, the users notes are: ${note}. Please return HTML that will replace the html of the element to match the users notes.. do not confuse the words in the users notes for class names or tags, the user does not know about those and can not see those!! The user only provides visual changes to the user experience. `,
       },
     ];
 
@@ -184,12 +182,18 @@ You will be given the outer html of the page. Please return custom html to be ap
       ? `The user has selected the following elements html to include in the context: ${selectedElementsHtml}`
       : "";
 
+    let userPromptInstructions = `These are the users notes for this website: ${note}\n\n${selectedElementsPrompt}\nHere is the html structure of the page: ${htmlStructure}\n\nAs a reminder, the users notes are: ${note}. Please return CSS that will modify the page to match the users notes.. do not confuse the words in the users notes for class names or tags, the user does not know about those and can not see those!! The user only provides visual changes to the user experience. `
+
+    if (conversationHistory.length > 0) {
+      let historyPromptInstruction = 'If this same user note exists in the conversation history already, it is likely that the user did not like the previous change, and is attempting to generate a new change with the same note for a better result. Do NOT re-use or recreate the old change from the change history. Those styles will be wiped out and replaced with your new styles.';
+
+      userPromptInstructions += "\n\n" + historyPromptInstruction;
+    }
+
     const userContent = [
       {
         type: "text",
-        text: `These are the users notes for this website: ${note}\n\n${selectedElementsPrompt}\nHere is the html structure of the page: ${htmlStructure}\n\nAs a reminder, the users notes are: ${note}. Please return CSS that will modify the page to match the users notes.. do not confuse the words in the users notes for class names or tags, the user does not know about those and can not see those!! The user only provides visual changes to the user experience. 
-
-Note: Please Do Not change anything the user does not ask you to change.... you will be rewarded as always for high quality work only. Thank you!!! (You have currently earned 7,830 rewards and are on a 23 day streak) `,
+        text: userPromptInstructions
       },
     ];
 
@@ -272,9 +276,7 @@ The browser is Chrome, so you can use any css that works in Chrome. These styles
     const userContent = [
       {
         type: "text",
-        text: `These are the users notes for this website: ${note}\n\n${selectedElementsPrompt}\nHere is the outer html of the element to be rewritten: ${outerHtml}\n\nAs a reminder, the users notes are: ${note}. Please return a querySelectorAll compatible selector that will select the elements to be changed. do not confuse the words in the users notes for class names or tags, the user does not know about those and can not see those!! The user only provides visual changes to the user experience. The elements gathered from this selector will be processed by a subsequent AI step. Do not try to use selector rules like has-text as it is generally up to the AI to determine the contents or meaning of the selected elements. For example, if the user wants to rewrite any comments that mention something related to a specific topic, do not ever use has-text looking for that topic - just give the selector for ALL comments, and the AI will process in the next step. 
-
-Note: Please Do Not change anything the user does not ask you to change.... you will be rewarded as always for high quality work only. Thank you!!! (You have currently earned 7,830 rewards and are on a 23 day streak) `,
+        text: `These are the users notes for this website: ${note}\n\n${selectedElementsPrompt}\nHere is the outer html of the element to be rewritten: ${outerHtml}\n\nAs a reminder, the users notes are: ${note}. Please return a querySelectorAll compatible selector that will select the elements to be changed. do not confuse the words in the users notes for class names or tags, the user does not know about those and can not see those!! The user only provides visual changes to the user experience. The elements gathered from this selector will be processed by a subsequent AI step. Do not try to use selector rules like has-text as it is generally up to the AI to determine the contents or meaning of the selected elements. For example, if the user wants to rewrite any comments that mention something related to a specific topic, do not ever use has-text looking for that topic - just give the selector for ALL comments, and the AI will process in the next step.`,
       },
     ];
 
@@ -1349,7 +1351,13 @@ async function _processElement(
   includeChangeHistory,
   includeGlobalChangeHistory,
 ) {
-  try {
+  try {   
+    // check if this global observer still exists (it may have been removed)
+    if (!generationObservers.has(generation.id)) {
+      return;
+    }
+
+
     const isProcessed =
       element.dataset.vkProcessed === "true" &&
       element.dataset.vkGenerationId === generation.id;
@@ -1385,6 +1393,11 @@ async function _processElement(
       html = result.html;
       response = result.response;
       await contentGenCache.set(cacheKey, html);
+    }
+
+    // check again if this global observer still exists (it may have been removed while we were waiting)
+    if (!generationObservers.has(generation.id)) {
+      return;
     }
 
     const url = new URL(window.location.href);
@@ -1493,21 +1506,23 @@ async function scanAndProcessElements(generation, settings, includeChangeHistory
     settings.modelName,
   );
 
+  // Not sure why the below was here - removed for now - caused the removal bugs.
+
   // --- Reprocessing Logic ---
   // Find elements from a previous run of THIS generation and re-queue them.
-  const elementsToReprocess = document.querySelectorAll(
-    `[data-vk-generation-id="${generation.id}"]`,
-  );
-  elementsToReprocess.forEach((element) => {
-    element.removeAttribute("data-vk-processed");
-    enqueueElement(
-      element,
-      generation,
-      openAI,
-      includeChangeHistory,
-      includeGlobalChangeHistory,
-    );
-  });
+ // const elementsToReprocess = document.querySelectorAll(
+ //   `[data-vk-generation-id="${generation.id}"]`,
+//  );
+ // elementsToReprocess.forEach((element) => {
+  //  element.removeAttribute("data-vk-processed");
+  //  enqueueElement(
+  //    element,
+  //    generation,
+  //    openAI,
+  //    includeChangeHistory,
+  //    includeGlobalChangeHistory,
+  //  );
+  //});
 
   // --- New Element Logic ---
   if (!generation.selectors) {

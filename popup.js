@@ -725,7 +725,7 @@ class PopupManager {
 
     if (isGlobal) {
       let randomPastel = Math.floor(Math.random() * 360);
-      styleGeneration.style.background = `hsl(${randomPastel}, 100%, 80%)`;
+      styleGeneration.style.background = `hsl(${randomPastel}, 90%, 80%)`;
       let globalLabel = document.createElement("div");
       globalLabel.innerText = "Global 🌐";
       globalLabel.style.position = "absolute";
@@ -737,10 +737,19 @@ class PopupManager {
       globalLabel.style.fontWeight = "bold";
       styleGeneration.appendChild(globalLabel);
     } else {
-      let randomPastel = Math.floor(Math.random() * 360);
-      let randomPastel2 = (randomPastel + 180) % 360;
-      let randomPastel3 = (randomPastel + 90) % 360;
-      styleGeneration.style.background = `linear-gradient(110deg, hsl(${randomPastel}, 100%, 80%), hsl(${randomPastel2}, 100%, 80%), hsl(${randomPastel3}, 100%, 80%), hsl(0, 0%, 80%))`;
+      let randomStartHue = Math.floor(Math.random() * 360);
+      let hue2 = (randomStartHue + 60) % 360;
+      let hue3 = (randomStartHue + 120) % 360;
+
+      const saturation = 90;
+      const lightness = 80;
+
+      styleGeneration.style.background =
+        `linear-gradient(110deg, 
+hsl(${randomStartHue}, ${saturation}%, ${lightness}%), 
+hsl(${hue2}, ${saturation}%, ${lightness}%),
+hsl(${hue3}, ${saturation}%, ${lightness}%)
+)`;
     }
 
     this.styleGenerations.appendChild(styleGeneration);
@@ -827,6 +836,15 @@ class PopupManager {
       this.contentLoadingIndicator.style.display = "block";
       const tabs = await this.getActiveTabs();
       const settings = this.getSettingsFromInputs();
+      // first remove the existing using removeContentGeneration
+      chrome.tabs.sendMessage(tabs[0].id, {
+        action: "removeContentGeneration",
+        generationId: generationData.id,
+      });
+
+      // generate a new selector
+
+      // then generate the content
       chrome.tabs.sendMessage(tabs[0].id, {
         action: "runScanAndProcessElements",
         note: generationData.note,
@@ -877,6 +895,30 @@ class PopupManager {
       noteDiv.contentEditable = false;
       applyButton.style.display = "none";
       modifyButton.style.display = "inline-block";
+
+      // clear the existing content
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        chrome.tabs.sendMessage(tabs[0].id, {
+          action: "removeContentGeneration",
+          generationId: generationData.id,
+        });
+      });
+      // then generate the content
+      const tabs = await this.getActiveTabs();
+      const settings = this.getSettingsFromInputs();
+      chrome.tabs.sendMessage(tabs[0].id, {
+        action: "runScanAndProcessElements",
+        note: generationData.note,
+        id: generationData.id,
+        visible: generationData.visible,
+        apiKey: settings.apiKey,
+        modelEndpoint: settings.modelEndpoint,
+        modelName: settings.modelName,
+        selectors: generationData.selectors,
+        selectedElements: generationData.selectedElements,
+        includeChangeHistory: this.includeChangeHistory.checked,
+        includeGlobalChangeHistory: this.includeGlobalChangeHistory.checked,
+      });
     });
 
     noteDiv.addEventListener("blur", (event) => {
@@ -951,11 +993,19 @@ class PopupManager {
     buttonsDiv.appendChild(removeButton);
     contentGeneration.appendChild(buttonsDiv);
 
-    let randomPastel = Math.floor(Math.random() * 360);
-    let randomPastel2 = (randomPastel + 180) % 360;
-    let randomPastel3 = (randomPastel + 90) % 360;
-    contentGeneration.style.background = `linear-gradient(110deg, hsl(${randomPastel}, 100%, 80%), hsl(${randomPastel2}, 100%, 80%), hsl(${randomPastel3}, 100%, 80%), hsl(0, 0%, 80%))`;
+    let randomStartHue = Math.floor(Math.random() * 360);
+    let hue2 = (randomStartHue + 60) % 360;
+    let hue3 = (randomStartHue + 120) % 360;
 
+    const saturation = 90;
+    const lightness = 80;
+
+    contentGeneration.style.background =
+      `linear-gradient(110deg, 
+hsl(${randomStartHue}, ${saturation}%, ${lightness}%), 
+hsl(${hue2}, ${saturation}%, ${lightness}%),
+hsl(${hue3}, ${saturation}%, ${lightness}%)
+)`;
     this.contentGenerations.appendChild(contentGeneration);
   }
 
