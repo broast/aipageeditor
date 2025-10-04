@@ -11,7 +11,7 @@ A browser extension for editing live web pages in the browser with AI-generated 
 - **Content Generation**: Process page content with AI to generate new text and HTML.
 - **Layer Management**: Generated content is organized into layers for easy management.
 - **Context Management**: Manage information included in AI requests, such as page HTML, screenshots, custom selected DOM nodes, and change history
-- **Bring Your Own Model**: Input your own model endpoints for custom AI processing.
+- **Bring Your Own Model**: Input your own model endpoints for custom AI processing (theoretically - untested at this time).
 
 ## Getting Started
 ### Chrome Web Store
