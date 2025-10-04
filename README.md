@@ -29,9 +29,3 @@ A browser extension for editing live web pages in the browser with AI-generated 
 5. Open the extension popup by clicking the extension icon in the toolbar.
 6. Configure a model endpoint and API key in the settings.
 7. Start generating styles and content for web pages.
-
-## Examples
-
-[![Image](https://github.com/user-attachments/assets/00005bea-f849-4de2-b0b4-ec447b15c460)]
-
-## Options
