@@ -29,3 +29,10 @@ A browser extension for editing live web pages in the browser with AI-generated 
 5. Open the extension popup by clicking the extension icon in the toolbar.
 6. Configure a model endpoint and API key in the settings.
 7. Start generating styles and content for web pages.
+
+## Known Bugs
+1) When enabling a previously disabled content generation layer after having navigated to a new page, generations do not apply. Workaround: reload the page
+2) When deleting a global style layer in one tab, other tabs will continue to show the global style layer on the page content while it is not available in the popup. Workaround: reload the page
+
+## Future Enhancements
+1) Agentic mode
