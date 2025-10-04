@@ -35,4 +35,4 @@ A browser extension for editing live web pages in the browser with AI-generated 
 2) When deleting a global style layer in one tab, other tabs will continue to show the global style layer on the page content while it is not available in the popup. Workaround: reload the page
 
 ## Future Enhancements
-1) Agentic mode
+1) Agentic mode with tool-use and MCP management
