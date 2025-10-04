@@ -4,6 +4,7 @@ A browser extension for editing live web pages in the browser with AI-generated 
 
 ## Demo
 <video src="[https://github.com/user/repo/assets/12345678/demo.mp4](https://github.com/user-attachments/assets/00005bea-f849-4de2-b0b4-ec447b15c460)" autoplay loop muted></video>
+https://github.com/user/repo/assets/12345678/demo.mp4
 
 ## Features
 - **Style Generation**: Generate CSS styles to apply to live web pages.
