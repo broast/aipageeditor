@@ -21,7 +21,6 @@ A browser extension for editing live web pages in the browser with AI-generated 
 1. Clone the repository:
    ```bash
    git clone https://github.com/broast/aipageeditor.git
-   cd ai-page-editor
    ```
 2. Open Chrome and navigate to `chrome://extensions`.
 3. Enable "Developer mode" in the top right corner.
