@@ -5,6 +5,8 @@ A browser extension for editing live web pages in the browser with AI-generated 
 ## Demo
 [![Watch the demo](https://github.com/user-attachments/assets/75d95e9f-0469-420a-b081-db67268c0128)](https://github.com/user-attachments/assets/00005bea-f849-4de2-b0b4-ec447b15c460)
 
+<img width="1912" height="1022" alt="image" src="https://github.com/user-attachments/assets/af978afd-1495-4cb9-87cf-9afefc8bb781" />
+
 ## Features
 - **Style Generation**: Generate CSS styles to apply to live web pages.
 - **Global Styles**: Apply styles globally across all websites.
