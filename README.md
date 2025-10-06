@@ -4,6 +4,7 @@ A browser extension for editing live web pages in the browser with AI-generated 
 
 ## Demo
 [![Watch the demo](https://github.com/user-attachments/assets/75d95e9f-0469-420a-b081-db67268c0128)](https://github.com/user-attachments/assets/00005bea-f849-4de2-b0b4-ec447b15c460)
+
 <img width="1910" height="961" alt="image" src="https://github.com/user-attachments/assets/e0a135b0-acb0-4d1f-ad0e-f0ace5b4c943" />
 
 
